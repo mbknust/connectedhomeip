@@ -15,13 +15,10 @@
  *    limitations under the License.
  */
 
-#include "TestRetransmit.h"
-
-#include <lib/support/UnitTestRegistration.h>
 #include <transport/retransmit/Cache.h>
 
 #include <bitset>
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 // Helpers for simple payload management
 namespace {
@@ -48,18 +45,16 @@ public:
 class IntPayloadTracker
 {
 public:
-    void Init(nlTestSuite * suite) { mSuite = suite; }
-
     void Acquire(int value)
     {
-        NL_TEST_ASSERT(mSuite, (value > 0) && value < kMaxPayloadValue);
+        EXPECT_TRUE((value > 0) && value < kMaxPayloadValue);
         mAcquired.set(static_cast<size_t>(value));
     }
 
     void Release(int value)
     {
-        NL_TEST_ASSERT(mSuite, (value > 0) && value < kMaxPayloadValue);
-        NL_TEST_ASSERT(mSuite, mAcquired.test(static_cast<size_t>(value)));
+        EXPECT_TRUE((value > 0) && value < kMaxPayloadValue);
+        EXPECT_TRUE(mAcquired.test(static_cast<size_t>(value)));
         mAcquired.reset(static_cast<size_t>(value));
     }
 
@@ -68,7 +63,6 @@ public:
     bool IsAcquired(int value) const { return mAcquired.test(static_cast<size_t>(value)); }
 
 private:
-    nlTestSuite * mSuite;
     std::bitset<kMaxPayloadValue> mAcquired;
 };
 
@@ -107,176 +101,153 @@ void chip::Retransmit::Lifetime<int>::Release(int & value)
 
 namespace {
 
-void TestNoOp(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, TestNoOp)
 {
     // unused address cache should not do any Acquire/release at any time
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
     {
         TestableCache<int, int, 20> test;
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+        EXPECT_TRUE(gPayloadTracker.Count() == 0);
     }
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 }
 
-void TestDestructorFree(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, TestDestructorFree)
 {
     {
         TestableCache<int, int, 20> test;
 
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+        EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-        NL_TEST_ASSERT(inSuite, test.AddValue(1, 1) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, test.AddValue(2, 2) == CHIP_NO_ERROR);
+        EXPECT_TRUE(test.AddValue(1, 1) == CHIP_NO_ERROR);
+        EXPECT_TRUE(test.AddValue(2, 2) == CHIP_NO_ERROR);
 
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 2);
+        EXPECT_TRUE(gPayloadTracker.Count() == 2);
     }
 
     // destructor should release the items
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 }
 
-void OutOfSpace(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, OutOfSpace)
 {
     {
         TestableCache<int, int, 4> test;
 
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+        EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-        NL_TEST_ASSERT(inSuite, test.AddValue(1, 1) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, test.AddValue(2, 2) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, test.AddValue(3, 4) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, test.AddValue(4, 6) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 4);
+        EXPECT_TRUE(test.AddValue(1, 1) == CHIP_NO_ERROR);
+        EXPECT_TRUE(test.AddValue(2, 2) == CHIP_NO_ERROR);
+        EXPECT_TRUE(test.AddValue(3, 4) == CHIP_NO_ERROR);
+        EXPECT_TRUE(test.AddValue(4, 6) == CHIP_NO_ERROR);
+        EXPECT_TRUE(gPayloadTracker.Count() == 4);
 
-        NL_TEST_ASSERT(inSuite, test.AddValue(5, 8) == CHIP_ERROR_NO_MEMORY);
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 4);
+        EXPECT_TRUE(test.AddValue(5, 8) == CHIP_ERROR_NO_MEMORY);
+        EXPECT_TRUE(gPayloadTracker.Count() == 4);
 
-        NL_TEST_ASSERT(inSuite, test.AddValue(6, 10) == CHIP_ERROR_NO_MEMORY);
-        NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 4);
+        EXPECT_TRUE(test.AddValue(6, 10) == CHIP_ERROR_NO_MEMORY);
+        EXPECT_TRUE(gPayloadTracker.Count() == 4);
     }
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 }
 
-void AddRemove(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, AddRemove)
 {
     TestableCache<int, int, 3> test;
 
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-    NL_TEST_ASSERT(inSuite, test.AddValue(1, 1) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(2, 2) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(3, 4) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 3);
+    EXPECT_TRUE(test.AddValue(1, 1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(2, 2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(3, 4) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 3);
 
-    NL_TEST_ASSERT(inSuite, test.AddValue(10, 8) == CHIP_ERROR_NO_MEMORY);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 3);
+    EXPECT_TRUE(test.AddValue(10, 8) == CHIP_ERROR_NO_MEMORY);
+    EXPECT_TRUE(gPayloadTracker.Count() == 3);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(2) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 2);
+    EXPECT_TRUE(test.Remove(2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 2);
 
-    NL_TEST_ASSERT(inSuite, test.AddValue(10, 8) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 3);
+    EXPECT_TRUE(test.AddValue(10, 8) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 3);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(14) == CHIP_ERROR_KEY_NOT_FOUND);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 3);
+    EXPECT_TRUE(test.Remove(14) == CHIP_ERROR_KEY_NOT_FOUND);
+    EXPECT_TRUE(gPayloadTracker.Count() == 3);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(1) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 2);
+    EXPECT_TRUE(test.Remove(1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 2);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(3) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 1);
+    EXPECT_TRUE(test.Remove(3) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 1);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(3) == CHIP_ERROR_KEY_NOT_FOUND);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 1);
+    EXPECT_TRUE(test.Remove(3) == CHIP_ERROR_KEY_NOT_FOUND);
+    EXPECT_TRUE(gPayloadTracker.Count() == 1);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(10) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(test.Remove(10) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(10) == CHIP_ERROR_KEY_NOT_FOUND);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(test.Remove(10) == CHIP_ERROR_KEY_NOT_FOUND);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 }
 
-void RemoveMatching(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, RemoveMatching)
 {
     TestableCache<int, int, 4> test;
 
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-    NL_TEST_ASSERT(inSuite, test.AddValue(1, 1) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(2, 2) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(3, 4) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(4, 8) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 4);
+    EXPECT_TRUE(test.AddValue(1, 1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(2, 2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(3, 4) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(4, 8) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 4);
 
     test.RemoveMatching(DivisibleBy(2));
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 2);
+    EXPECT_TRUE(gPayloadTracker.Count() == 2);
 
     // keys 1 and 3 remain
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.IsAcquired(1));
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.IsAcquired(4));
+    EXPECT_TRUE(gPayloadTracker.IsAcquired(1));
+    EXPECT_TRUE(gPayloadTracker.IsAcquired(4));
 
-    NL_TEST_ASSERT(inSuite, test.Remove(3) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.IsAcquired(1));
-    NL_TEST_ASSERT(inSuite, !gPayloadTracker.IsAcquired(4));
+    EXPECT_TRUE(test.Remove(3) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.IsAcquired(1));
+    EXPECT_TRUE(!gPayloadTracker.IsAcquired(4));
 }
 
-void FindMatching(nlTestSuite * inSuite, void * inContext)
+TEST(TestCache, FindMatching)
 {
     TestableCache<int, int, 4> test;
 
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 0);
+    EXPECT_TRUE(gPayloadTracker.Count() == 0);
 
-    NL_TEST_ASSERT(inSuite, test.AddValue(1, 1) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(2, 2) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(3, 4) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.AddValue(4, 8) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, gPayloadTracker.Count() == 4);
+    EXPECT_TRUE(test.AddValue(1, 1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(2, 2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(3, 4) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.AddValue(4, 8) == CHIP_NO_ERROR);
+    EXPECT_TRUE(gPayloadTracker.Count() == 4);
 
     const int * key;
     const int * value;
 
-    NL_TEST_ASSERT(inSuite, test.Find(DivisibleBy(20), &key, &value) == false);
-    NL_TEST_ASSERT(inSuite, key == nullptr);
-    NL_TEST_ASSERT(inSuite, value == nullptr);
+    EXPECT_TRUE(test.Find(DivisibleBy(20), &key, &value) == false);
+    EXPECT_TRUE(key == nullptr);
+    EXPECT_TRUE(value == nullptr);
 
     // This relies on linear add. May need changing if implementation changes
-    NL_TEST_ASSERT(inSuite, test.Find(DivisibleBy(2), &key, &value) == true);
-    NL_TEST_ASSERT(inSuite, *key == 2);
-    NL_TEST_ASSERT(inSuite, *value == 2);
+    EXPECT_TRUE(test.Find(DivisibleBy(2), &key, &value) == true);
+    EXPECT_TRUE(*key == 2);
+    EXPECT_TRUE(*value == 2);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(*key) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.Remove(*key) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, test.Find(DivisibleBy(2), &key, &value) == true);
-    NL_TEST_ASSERT(inSuite, *key == 4);
-    NL_TEST_ASSERT(inSuite, *value == 8);
+    EXPECT_TRUE(test.Find(DivisibleBy(2), &key, &value) == true);
+    EXPECT_TRUE(*key == 4);
+    EXPECT_TRUE(*value == 8);
 
-    NL_TEST_ASSERT(inSuite, test.Remove(*key) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, test.Find(DivisibleBy(2), &key, &value) == false);
-    NL_TEST_ASSERT(inSuite, key == nullptr);
-    NL_TEST_ASSERT(inSuite, value == nullptr);
+    EXPECT_TRUE(test.Remove(*key) == CHIP_NO_ERROR);
+    EXPECT_TRUE(test.Find(DivisibleBy(2), &key, &value) == false);
+    EXPECT_TRUE(key == nullptr);
+    EXPECT_TRUE(value == nullptr);
 }
 
 } // namespace
-
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("NoOp", TestNoOp),
-    NL_TEST_DEF("DestructorFree", TestDestructorFree),
-    NL_TEST_DEF("OutOfSpace", OutOfSpace),
-    NL_TEST_DEF("AddRemove", AddRemove),
-    NL_TEST_DEF("RemoveMatching", RemoveMatching),
-    NL_TEST_DEF("FindMatching", FindMatching),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestCache(void)
-{
-    nlTestSuite theSuite = { "Retransmit-Cache", &sTests[0], nullptr, nullptr };
-    gPayloadTracker.Init(&theSuite);
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestCache)

@@ -39,6 +39,8 @@
 namespace chip {
 namespace Transport {
 
+class TestTCP;
+
 /** Defines listening parameters for setting up a TCP transport */
 class TcpListenParameters
 {
@@ -130,6 +132,7 @@ protected:
 
         // Buffers received but not yet consumed.
         System::PacketBufferHandle mReceived;
+        friend class TestTCP;
     };
 
 public:
@@ -181,7 +184,7 @@ public:
     void CloseActiveConnections();
 
 private:
-    friend class TCPTest;
+    friend class TestTCP;
 
     /**
      * Find an active connection to the given peer or return nullptr if
@@ -279,7 +282,7 @@ public:
     ~TCP() override { mPendingPackets.ReleaseAll(); }
 
 private:
-    friend class TCPTest;
+    friend class TestTCP;
     TCPBase::ActiveConnectionState mConnectionsBuffer[kActiveConnectionsSize];
     PoolImpl<PendingPacket, kPendingPacketSize, ObjectPoolMem::kInline, PendingPacketPoolType::Interface> mPendingPackets;
 };

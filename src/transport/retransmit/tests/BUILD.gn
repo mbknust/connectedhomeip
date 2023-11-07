@@ -22,12 +22,16 @@ import("${chip_root}/build/chip/chip_test_suite.gni")
 chip_test_suite("tests") {
   output_name = "libRetransmitTests"
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
 
-  sources = [
-    "TestCache.cpp",
-    "TestRetransmit.h",
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
   ]
+
+  test_sources = [ "TestCache.cpp" ]
 
   public_deps = [
     "${chip_root}/src/lib/support:testing",
@@ -35,6 +39,4 @@ chip_test_suite("tests") {
     "${nlio_root}:nlio",
     "${nlunit_test_root}:nlunit-test",
   ]
-
-  tests = [ "TestCache" ]
 }

@@ -24,12 +24,12 @@
 #include "system/SystemClock.h"
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <transport/SecureSessionTable.h>
 #include <transport/SessionHolder.h>
 
+#include <gtest/gtest.h>
 #include <nlbyteorder.h>
-#include <nlunit-test.h>
 
 #include <errno.h>
 #include <vector>
@@ -37,17 +37,30 @@
 namespace chip {
 namespace Transport {
 
-class TestSecureSessionTable
+class TestSecureSessionTable : public ::testing::Test
 {
 public:
+    static void SetUpTestSuite()
+    {
+        VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR);
+        sessionList = Platform::MakeUnique<std::vector<Platform::UniquePtr<SessionNotificationListener>>>();
+        VerifyOrDie(sessionList.get() != nullptr);
+    }
+    static void TearDownTestSuite()
+    {
+        sessionList.reset();
+        sessionTable.reset();
+        chip::Platform::MemoryShutdown();
+    }
+
     //
     // This test specifically validates eviction of sessions in the session table
     // with various scenarios based on the existing set of sessions in the table
     // and a provided session eviction hint
     //
-    static void ValidateSessionSorting(nlTestSuite * inSuite, void * inContext);
+    static void ValidateSessionSorting();
 
-private:
+protected:
     struct SessionParameters
     {
         ScopedNodeId mPeer;
@@ -62,14 +75,14 @@ private:
     class SessionNotificationListener : public SessionDelegate
     {
     public:
-        SessionNotificationListener(const SessionHandle & session) : mSessionHolder(*this) { mSessionHolder.Grab(session); }
+        SessionNotificationListener(const SessionHandle & session) : sessionHolder(*this) { sessionHolder.Grab(session); }
 
-        void OnSessionReleased() { mSessionReleased = true; }
+        void OnSessionReleased() { sessionReleased = true; }
 
         NewSessionHandlingPolicy GetNewSessionHandlingPolicy() { return NewSessionHandlingPolicy::kStayAtOldSession; }
 
-        SessionHolderWithDelegate mSessionHolder;
-        bool mSessionReleased = false;
+        SessionHolderWithDelegate sessionHolder;
+        bool sessionReleased = false;
     };
 
     static constexpr FabricIndex kFabric1 = 1;
@@ -80,41 +93,44 @@ private:
     // Allocates a new secure session given an eviction hint. The session that was evicted is compared against the provided
     // evictedSessionIndex (which indexes into the provided SessionParameter table) to validate that it matches.
     //
-    void AllocateSession(const ScopedNodeId & sessionEvictionHint, std::vector<SessionParameters> & sessionParameters,
-                         uint16_t evictedSessionIndex);
+    static void AllocateSession(const ScopedNodeId & sessionEvictionHint, std::vector<SessionParameters> & sessionParameters,
+                                uint16_t evictedSessionIndex);
 
     //
     // Reset our internal SecureSessionTable list and create a new one given the provided parameters.
     //
-    void CreateSessionTable(std::vector<SessionParameters> & sessionParams);
+    static void CreateSessionTable(std::vector<SessionParameters> & sessionParams);
 
-    nlTestSuite * mTestSuite;
-    Platform::UniquePtr<SecureSessionTable> mSessionTable;
-    std::vector<Platform::UniquePtr<SessionNotificationListener>> mSessionList;
+    static Platform::UniquePtr<SecureSessionTable> sessionTable;
+    static Platform::UniquePtr<std::vector<Platform::UniquePtr<SessionNotificationListener>>> sessionList;
 };
+
+Platform::UniquePtr<SecureSessionTable> TestSecureSessionTable::sessionTable;
+Platform::UniquePtr<std::vector<Platform::UniquePtr<TestSecureSessionTable::SessionNotificationListener>>>
+    TestSecureSessionTable::sessionList;
 
 void TestSecureSessionTable::AllocateSession(const ScopedNodeId & sessionEvictionHint,
                                              std::vector<SessionParameters> & sessionParameters, uint16_t evictedSessionIndex)
 {
-    auto session = mSessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, sessionEvictionHint);
-    NL_TEST_ASSERT(mTestSuite, session.HasValue());
-    NL_TEST_ASSERT(mTestSuite, mSessionList[evictedSessionIndex].get()->mSessionReleased == true);
+    auto session = sessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, sessionEvictionHint);
+    EXPECT_TRUE(session.HasValue());
+    EXPECT_TRUE((*sessionList)[evictedSessionIndex].get()->sessionReleased == true);
 }
 
 void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> & sessionParams)
 {
-    mSessionList.clear();
+    sessionList->clear();
 
-    mSessionTable = Platform::MakeUnique<SecureSessionTable>();
-    NL_TEST_ASSERT(mTestSuite, mSessionTable.get() != nullptr);
+    sessionTable = Platform::MakeUnique<SecureSessionTable>();
+    EXPECT_TRUE(sessionTable.get() != nullptr);
 
-    mSessionTable->Init();
-    mSessionTable->SetMaxSessionTableSize(static_cast<uint32_t>(sessionParams.size()));
+    sessionTable->Init();
+    sessionTable->SetMaxSessionTableSize(static_cast<uint32_t>(sessionParams.size()));
 
     for (unsigned int i = 0; i < sessionParams.size(); i++)
     {
-        auto session = mSessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, ScopedNodeId());
-        NL_TEST_ASSERT(mTestSuite, session.HasValue());
+        auto session = sessionTable->CreateNewSecureSession(SecureSession::Type::kCASE, ScopedNodeId());
+        EXPECT_TRUE(session.HasValue());
 
         session.Value()->AsSecureSession()->Activate(
             ScopedNodeId(1, sessionParams[i].mPeer.GetFabricIndex()), sessionParams[i].mPeer, CATValues(), static_cast<uint16_t>(i),
@@ -123,15 +139,16 @@ void TestSecureSessionTable::CreateSessionTable(std::vector<SessionParameters> &
         session.Value()->AsSecureSession()->mLastActivityTime = sessionParams[i].mLastActivityTime;
         session.Value()->AsSecureSession()->mState            = sessionParams[i].mState;
 
-        mSessionList.push_back(Platform::MakeUnique<SessionNotificationListener>(session.Value()));
+        sessionList->push_back(Platform::MakeUnique<SessionNotificationListener>(session.Value()));
     }
 }
 
-void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void * inContext)
-{
-    Platform::UniquePtr<TestSecureSessionTable> & _this = *static_cast<Platform::UniquePtr<TestSecureSessionTable> *>(inContext);
-    _this->mTestSuite                                   = inSuite;
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
 
+STATIC_TEST(TestSecureSessionTable, ValidateSessionSorting)
+{
     //
     // This validates basic eviction. The table is full of sessions from Fabric1 from the same
     // Node (2). Eviction should select the oldest session in the table (with timestamp 1) and evict that
@@ -148,8 +165,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 2, kFabric1 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
     }
 
     //
@@ -170,8 +187,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 2, kFabric1 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(2, kFabric2), sessionParamList, 4);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(2, kFabric2), sessionParamList, 4);
     }
 
     //
@@ -196,8 +213,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 1);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 1);
     }
 
     //
@@ -222,8 +239,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 3);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 3);
     }
 
     //
@@ -248,8 +265,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(2, kFabric1), sessionParamList, 4);
     }
 
     //
@@ -271,8 +288,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 2);
     }
 
     //
@@ -295,8 +312,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(3, kFabric1), sessionParamList, 3);
     }
 
     //
@@ -317,8 +334,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(4, kFabric1), sessionParamList, 2);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(4, kFabric1), sessionParamList, 2);
     }
 
     //
@@ -337,8 +354,8 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 4);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 4);
     }
 
     //
@@ -359,67 +376,9 @@ void TestSecureSessionTable::ValidateSessionSorting(nlTestSuite * inSuite, void 
             { { 4, kFabric2 }, System::Clock::Timestamp(2), SecureSession::State::kActive },
         };
 
-        _this->CreateSessionTable(sessionParamList);
-        _this->AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 5);
+        CreateSessionTable(sessionParamList);
+        AllocateSession(ScopedNodeId(4, kFabric3), sessionParamList, 5);
     }
 }
-
-Platform::UniquePtr<TestSecureSessionTable> gTestSecureSessionTable;
-
 } // namespace Transport
 } // namespace chip
-
-// Test Suite
-
-namespace {
-
-/**
- *  Test Suite that lists all the test functions.
- */
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("Validate Session Sorting (Over Minima)",               chip::Transport::TestSecureSessionTable::ValidateSessionSorting),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int Initialize(void * apSuite)
-{
-    VerifyOrReturnError(chip::Platform::MemoryInit() == CHIP_NO_ERROR, FAILURE);
-    chip::Transport::gTestSecureSessionTable = chip::Platform::MakeUnique<chip::Transport::TestSecureSessionTable>();
-    return SUCCESS;
-}
-
-int Finalize(void * aContext)
-{
-    chip::Transport::gTestSecureSessionTable.reset();
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
-}
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestSecureSessionTable",
-    &sTests[0],
-    Initialize,
-    Finalize
-};
-// clang-format on
-
-} // namespace
-
-/**
- *  Main
- */
-int SecureSessionTableTest()
-{
-    // Run test suit against one context
-    nlTestRunner(&sSuite, &chip::Transport::gTestSecureSessionTable);
-
-    int r = (nlTestRunnerStats(&sSuite));
-    return r;
-}
-
-CHIP_REGISTER_TEST_SUITE(SecureSessionTableTest);
