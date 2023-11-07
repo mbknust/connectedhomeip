@@ -24,7 +24,6 @@ chip_test_suite("tests") {
 
   sources = [
     "AES_CCM_128_test_vectors.h",
-    "CHIPCryptoPALTest.cpp",
     "DacValidationExplicitVectors.h",
     "DerSigConversion_test_vectors.h",
     "ECDH_P256_test_vectors.h",
@@ -46,6 +45,7 @@ chip_test_suite("tests") {
   ]
 
   test_sources = [
+    "TestCryptoPAL.cpp",
     "TestGroupOperationalCredentials.cpp",
     "TestSessionKeystore.cpp",
   ]
@@ -61,7 +61,14 @@ chip_test_suite("tests") {
     defines = [ "CURRENT_TIME_NOT_IMPLEMENTED=1" ]
   }
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
+  ]
 
   public_deps = [
     "${chip_root}/src/credentials/tests:cert_test_vectors",
@@ -71,6 +78,4 @@ chip_test_suite("tests") {
     "${chip_root}/src/platform",
     "${nlunit_test_root}:nlunit-test",
   ]
-
-  tests = [ "CHIPCryptoPALTest" ]
 }
