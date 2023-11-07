@@ -33,7 +33,15 @@ chip_test_suite("tests") {
     test_sources += [ "TestEventNumberCaching.cpp" ]
   }
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+  ]
+
+  configs = [ "${chip_root}/build/config/compiler:sanitize_address" ]
 
   public_deps = [
     "${chip_root}/src/app/common:cluster-objects",

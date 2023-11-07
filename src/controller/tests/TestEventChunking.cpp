@@ -33,16 +33,16 @@
 #include <app/util/DataModelHandler.h>
 #include <app/util/attribute-storage.h>
 #include <controller/InvokeInteraction.h>
+#include <gtest/gtest.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/tests/MessagingContext.h>
-#include <nlunit-test.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -98,7 +98,6 @@ private:
 };
 
 uint32_t gIterationCount = 0;
-nlTestSuite * gSuite     = nullptr;
 
 //
 // The generated endpoint_config for the controller app has Endpoint 1
@@ -111,16 +110,24 @@ constexpr AttributeId kTestListLargeAttribute = 8; // This attribute will be lar
 // The size of the attribute which is a bit larger than the size of event used in the test.
 constexpr size_t kSizeOfLargeAttribute = 60;
 
-class TestReadEvents
+class TestReadEvents : public ::testing::Test
 {
 public:
-    TestReadEvents() {}
-    static void TestEventChunking(nlTestSuite * apSuite, void * apContext);
-    static void TestMixedEventsAndAttributesChunking(nlTestSuite * apSuite, void * apContext);
-    static void TestMixedEventsAndLargeAttributesChunking(nlTestSuite * apSuite, void * apContext);
+    static TestContext ctx;
+    static void SetUpTestSuite() { TestContext::Initialize(static_cast<void *>(&ctx)); }
+    static void TearDownTestSuite() { TestContext::Finalize(static_cast<void *>(&ctx)); }
 
-private:
+    TestReadEvents() {}
+    static void TestEventChunking();
+    static void TestMixedEventsAndAttributesChunking();
+    static void TestMixedEventsAndLargeAttributesChunking();
 };
+
+TestContext TestReadEvents::ctx;
+
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
 
 //clang-format off
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(testClusterAttrs)
@@ -173,30 +180,30 @@ void TestReadCallback::OnAttributeData(const app::ConcreteDataAttributePath & aP
     if (aPath.mAttributeId == Globals::Attributes::GeneratedCommandList::Id)
     {
         app::DataModel::DecodableList<CommandId> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
         while (it.Next())
         {
-            NL_TEST_ASSERT(gSuite, false);
+            EXPECT_TRUE(false);
         }
-        NL_TEST_ASSERT(gSuite, it.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 0);
+        EXPECT_TRUE(it.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 0);
     }
     else if (aPath.mAttributeId == Globals::Attributes::AcceptedCommandList::Id)
     {
         app::DataModel::DecodableList<CommandId> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
         while (it.Next())
         {
-            NL_TEST_ASSERT(gSuite, false);
+            EXPECT_TRUE(false);
         }
-        NL_TEST_ASSERT(gSuite, it.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 0);
+        EXPECT_TRUE(it.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 0);
     }
 #if CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE
     else if (aPath.mAttributeId == Globals::Attributes::EventList::Id)
@@ -211,17 +218,17 @@ void TestReadCallback::OnAttributeData(const app::ConcreteDataAttributePath & aP
     else if (aPath.mAttributeId == kTestListLargeAttribute)
     {
         app::DataModel::DecodableList<ByteSpan> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 4);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 4);
     }
     else
     {
         uint8_t v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v == (uint8_t) gIterationCount);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(v == (uint8_t) gIterationCount);
     }
     mAttributeCount++;
 }
@@ -275,7 +282,7 @@ CHIP_ERROR TestAttrAccess::Write(const app::ConcreteDataAttributePath & aPath, a
 
 namespace {
 
-void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber, chip::EventNumber & lastEventNumber)
+void GenerateEvents(chip::EventNumber & firstEventNumber, chip::EventNumber & lastEventNumber)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -284,7 +291,7 @@ void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber,
 
     for (int i = 0; i < 5; i++)
     {
-        NL_TEST_ASSERT(apSuite, (err = app::LogEvent(content, kTestEndpointId, lastEventNumber)) == CHIP_NO_ERROR);
+        EXPECT_TRUE((err = app::LogEvent(content, kTestEndpointId, lastEventNumber)) == CHIP_NO_ERROR);
         if (i == 0)
         {
             firstEventNumber = lastEventNumber;
@@ -311,9 +318,8 @@ void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber,
  * as we can possibly cover.
  *
  */
-void TestReadEvents::TestEventChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadEvents, TestEventChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -327,7 +333,7 @@ void TestReadEvents::TestEventChunking(nlTestSuite * apSuite, void * apContext)
     chip::EventNumber firstEventNumber;
     chip::EventNumber lastEventNumber;
 
-    GenerateEvents(apSuite, firstEventNumber, lastEventNumber);
+    GenerateEvents(firstEventNumber, lastEventNumber);
 
     app::EventPathParams eventPath;
     eventPath.mEndpointId = kTestEndpointId;
@@ -358,17 +364,17 @@ void TestReadEvents::TestEventChunking(nlTestSuite * apSuite, void * apContext)
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
-        NL_TEST_ASSERT(apSuite, readCallback.mEventCount == static_cast<uint32_t>((lastEventNumber - firstEventNumber) + 1));
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(readCallback.mEventCount == static_cast<uint32_t>((lastEventNumber - firstEventNumber) + 1));
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
         //
         // Stop the test if we detected an error. Otherwise, it'll be difficult to read the logs.
         //
-        if (apSuite->flagError)
+        if (Test::HasFailure())
         {
             break;
         }
@@ -378,9 +384,8 @@ void TestReadEvents::TestEventChunking(nlTestSuite * apSuite, void * apContext)
 }
 
 // Similar to the tests above, but it will read attributes AND events
-void TestReadEvents::TestMixedEventsAndAttributesChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadEvents, TestMixedEventsAndAttributesChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -395,7 +400,7 @@ void TestReadEvents::TestMixedEventsAndAttributesChunking(nlTestSuite * apSuite,
     chip::EventNumber lastEventNumber;
 
     // We will always read from the first event, so it is enough to only generate events once.
-    GenerateEvents(apSuite, firstEventNumber, lastEventNumber);
+    GenerateEvents(firstEventNumber, lastEventNumber);
 
     app::EventPathParams eventPath;
     app::AttributePathParams attributePath(kTestEndpointId, app::Clusters::UnitTesting::Id);
@@ -427,23 +432,23 @@ void TestReadEvents::TestMixedEventsAndAttributesChunking(nlTestSuite * apSuite,
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
         //
         // Always returns the same number of attributes read (5 + revision + GlobalAttributesNotInMetadata).
         //
-        NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
-        NL_TEST_ASSERT(apSuite, readCallback.mAttributeCount == 6 + ArraySize(GlobalAttributesNotInMetadata));
-        NL_TEST_ASSERT(apSuite, readCallback.mEventCount == static_cast<uint32_t>(lastEventNumber - firstEventNumber + 1));
+        EXPECT_TRUE(readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mAttributeCount == 6 + ArraySize(GlobalAttributesNotInMetadata));
+        EXPECT_TRUE(readCallback.mEventCount == static_cast<uint32_t>(lastEventNumber - firstEventNumber + 1));
 
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
         //
         // Stop the test if we detected an error. Otherwise, it'll be difficult to read the logs.
         //
-        if (apSuite->flagError)
+        if (Test::HasFailure())
         {
             break;
         }
@@ -455,9 +460,8 @@ void TestReadEvents::TestMixedEventsAndAttributesChunking(nlTestSuite * apSuite,
 // Similar to the tests above, however, there is one another case -- the event payload is very large usually, so when it is failed
 // to encode an attribute, it is usually impossible to encode a event data, so we cannot verify the case when events and attributes
 // can be encoded in to one chunk in the tests above. This test will force it by reading only one attribtue and read many events.
-void TestReadEvents::TestMixedEventsAndLargeAttributesChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadEvents, TestMixedEventsAndLargeAttributesChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -472,7 +476,7 @@ void TestReadEvents::TestMixedEventsAndLargeAttributesChunking(nlTestSuite * apS
     chip::EventNumber lastEventNumber;
 
     // We will always read from the first event, so it is enough to only generate events once.
-    GenerateEvents(apSuite, firstEventNumber, lastEventNumber);
+    GenerateEvents(firstEventNumber, lastEventNumber);
 
     app::EventPathParams eventPath;
     app::AttributePathParams attributePath(kTestEndpointId, app::Clusters::UnitTesting::Id, kTestListLargeAttribute);
@@ -504,20 +508,20 @@ void TestReadEvents::TestMixedEventsAndLargeAttributesChunking(nlTestSuite * apS
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
-        NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
-        NL_TEST_ASSERT(apSuite, readCallback.mAttributeCount == 1);
-        NL_TEST_ASSERT(apSuite, readCallback.mEventCount == static_cast<uint32_t>(lastEventNumber - firstEventNumber + 1));
+        EXPECT_TRUE(readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mAttributeCount == 1);
+        EXPECT_TRUE(readCallback.mEventCount == static_cast<uint32_t>(lastEventNumber - firstEventNumber + 1));
 
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
         //
         // Stop the test if we detected an error. Otherwise, it'll be difficult to read the logs.
         //
-        if (apSuite->flagError)
+        if (Test::HasFailure())
         {
             break;
         }
@@ -526,33 +530,4 @@ void TestReadEvents::TestMixedEventsAndLargeAttributesChunking(nlTestSuite * apS
     emberAfClearDynamicEndpoint(0);
 }
 
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestEventChunking", TestReadEvents::TestEventChunking),
-    NL_TEST_DEF("TestMixedEventsAndAttributesChunking", TestReadEvents::TestMixedEventsAndAttributesChunking),
-    NL_TEST_DEF("TestMixedEventsAndLargeAttributesChunking", TestReadEvents::TestMixedEventsAndLargeAttributesChunking),
-    NL_TEST_SENTINEL()
-};
-
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestEventChunking",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-int TestEventChunkingTests()
-{
-    gSuite = &sSuite;
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestEventChunkingTests)

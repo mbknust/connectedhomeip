@@ -29,6 +29,15 @@ chip_test_suite("data_model") {
     test_sources += [ "TestWrite.cpp" ]
   }
 
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
+  ]
+
   public_deps = [
     "${chip_root}/src/app",
     "${chip_root}/src/app/common:cluster-objects",

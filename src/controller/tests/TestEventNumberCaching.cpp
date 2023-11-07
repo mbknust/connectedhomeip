@@ -33,14 +33,14 @@
 #include <app/util/DataModelHandler.h>
 #include <app/util/attribute-storage.h>
 #include <controller/InvokeInteraction.h>
+#include <gtest/gtest.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/tests/MessagingContext.h>
-#include <nlunit-test.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -95,8 +95,6 @@ private:
     MonotonicallyIncreasingCounter<EventNumber> mEventCounter;
 };
 
-nlTestSuite * gSuite = nullptr;
-
 //
 // The generated endpoint_config for the controller app has Endpoint 1
 // already used in the fixed endpoint set of size 1. Consequently, let's use the next
@@ -104,14 +102,20 @@ nlTestSuite * gSuite = nullptr;
 //
 constexpr EndpointId kTestEndpointId = 2;
 
-class TestReadEvents
+class TestReadEvents : public ::testing::Test
 {
 public:
     TestReadEvents() {}
-    static void TestEventNumberCaching(nlTestSuite * apSuite, void * apContext);
+    static TestContext ctx;
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+
+    static void TestEventNumberCaching();
 
 private:
 };
+
+TestContext TestReadEvents::ctx;
 
 //clang-format off
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(testClusterAttrs)
@@ -142,7 +146,7 @@ public:
 
 namespace {
 
-void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber, chip::EventNumber & lastEventNumber)
+void GenerateEvents(chip::EventNumber & firstEventNumber, chip::EventNumber & lastEventNumber)
 {
     CHIP_ERROR err                 = CHIP_NO_ERROR;
     static uint8_t generationCount = 0;
@@ -152,7 +156,7 @@ void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber,
     for (int i = 0; i < 5; i++)
     {
         content.arg1 = static_cast<uint8_t>(generationCount++);
-        NL_TEST_ASSERT(apSuite, (err = app::LogEvent(content, kTestEndpointId, lastEventNumber)) == CHIP_NO_ERROR);
+        EXPECT_TRUE((err = app::LogEvent(content, kTestEndpointId, lastEventNumber)) == CHIP_NO_ERROR);
         if (i == 0)
         {
             firstEventNumber = lastEventNumber;
@@ -162,15 +166,18 @@ void GenerateEvents(nlTestSuite * apSuite, chip::EventNumber & firstEventNumber,
 
 } // namespace
 
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
+
 /*
  * This validates event caching by forcing a bunch of events to get generated, then reading them back
  * and upon completion of that operation, check the received version from cache, and note that cache would store
  * correpsonding attribute data since data cache is disabled.
  *
  */
-void TestReadEvents::TestEventNumberCaching(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadEvents, TestEventNumberCaching)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -184,8 +191,8 @@ void TestReadEvents::TestEventNumberCaching(nlTestSuite * apSuite, void * apCont
     chip::EventNumber firstEventNumber;
     chip::EventNumber lastEventNumber;
 
-    GenerateEvents(apSuite, firstEventNumber, lastEventNumber);
-    NL_TEST_ASSERT(apSuite, lastEventNumber > firstEventNumber);
+    GenerateEvents(firstEventNumber, lastEventNumber);
+    EXPECT_TRUE(lastEventNumber > firstEventNumber);
 
     app::EventPathParams eventPath;
     eventPath.mEndpointId = kTestEndpointId;
@@ -201,25 +208,25 @@ void TestReadEvents::TestEventNumberCaching(nlTestSuite * apSuite, void * apCont
     {
         Optional<EventNumber> highestEventNumber;
         readCallback.mClusterCacheAdapter.GetHighestReceivedEventNumber(highestEventNumber);
-        NL_TEST_ASSERT(apSuite, !highestEventNumber.HasValue());
+        EXPECT_TRUE(!highestEventNumber.HasValue());
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mClusterCacheAdapter.GetBufferedCallback(),
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
-        NL_TEST_ASSERT(apSuite, readCallback.mEventsSeen == lastEventNumber - firstEventNumber + 1);
+        EXPECT_TRUE(readCallback.mEventsSeen == lastEventNumber - firstEventNumber + 1);
 
-        readCallback.mClusterCacheAdapter.ForEachEventData([&apSuite](const app::EventHeader & header) {
+        readCallback.mClusterCacheAdapter.ForEachEventData([](const app::EventHeader & header) {
             // We are not caching data.
-            NL_TEST_ASSERT(apSuite, false);
+            EXPECT_TRUE(false);
 
             return CHIP_NO_ERROR;
         });
 
         readCallback.mClusterCacheAdapter.GetHighestReceivedEventNumber(highestEventNumber);
-        NL_TEST_ASSERT(apSuite, highestEventNumber.HasValue() && highestEventNumber.Value() == lastEventNumber);
+        EXPECT_TRUE(highestEventNumber.HasValue() && highestEventNumber.Value() == lastEventNumber);
     }
 
     //
@@ -233,64 +240,37 @@ void TestReadEvents::TestEventNumberCaching(nlTestSuite * apSuite, void * apCont
         readCallback.mClusterCacheAdapter.ClearEventCache(true);
         Optional<EventNumber> highestEventNumber;
         readCallback.mClusterCacheAdapter.GetHighestReceivedEventNumber(highestEventNumber);
-        NL_TEST_ASSERT(apSuite, !highestEventNumber.HasValue());
+        EXPECT_TRUE(!highestEventNumber.HasValue());
 
         const EventNumber kHighestEventNumberSeen = lastEventNumber - 1;
-        NL_TEST_ASSERT(apSuite, kHighestEventNumberSeen < lastEventNumber);
+        EXPECT_TRUE(kHighestEventNumberSeen < lastEventNumber);
 
         readCallback.mClusterCacheAdapter.SetHighestReceivedEventNumber(kHighestEventNumberSeen);
 
         readCallback.mEventsSeen = 0;
 
         readParams.mEventNumber.ClearValue();
-        NL_TEST_ASSERT(apSuite, !readParams.mEventNumber.HasValue());
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(!readParams.mEventNumber.HasValue());
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
         // We should only get events with event numbers larger than kHighestEventNumberSeen.
-        NL_TEST_ASSERT(apSuite, readCallback.mEventsSeen == lastEventNumber - kHighestEventNumberSeen);
+        EXPECT_TRUE(readCallback.mEventsSeen == lastEventNumber - kHighestEventNumberSeen);
 
-        readCallback.mClusterCacheAdapter.ForEachEventData([&apSuite](const app::EventHeader & header) {
+        readCallback.mClusterCacheAdapter.ForEachEventData([](const app::EventHeader & header) {
             // We are not caching data.
-            NL_TEST_ASSERT(apSuite, false);
+            EXPECT_TRUE(false);
 
             return CHIP_NO_ERROR;
         });
 
         readCallback.mClusterCacheAdapter.GetHighestReceivedEventNumber(highestEventNumber);
-        NL_TEST_ASSERT(apSuite, highestEventNumber.HasValue() && highestEventNumber.Value() == lastEventNumber);
+        EXPECT_TRUE(highestEventNumber.HasValue() && highestEventNumber.Value() == lastEventNumber);
     }
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     emberAfClearDynamicEndpoint(0);
 }
 
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestEventNumberCaching", TestReadEvents::TestEventNumberCaching),
-    NL_TEST_SENTINEL()
-};
-
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestEventNumberCaching",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-int TestEventNumberCaching()
-{
-    gSuite = &sSuite;
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestEventNumberCaching)

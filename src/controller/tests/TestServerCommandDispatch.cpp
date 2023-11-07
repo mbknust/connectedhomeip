@@ -33,12 +33,12 @@
 #include <app/util/attribute-storage.h>
 #include <controller/InvokeInteraction.h>
 #include <controller/ReadInteraction.h>
+#include <gtest/gtest.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/tests/MessagingContext.h>
-#include <nlunit-test.h>
 
 using TestContext = chip::Test::AppContext;
 
@@ -132,22 +132,27 @@ CHIP_ERROR TestClusterCommandHandler::EnumerateAcceptedCommands(const ConcreteCl
 
 namespace {
 
-class TestCommandInteraction
+class TestCommandInteraction : public ::testing::Test
 {
 public:
     TestCommandInteraction() {}
-    static void TestNoHandler(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponse(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponseNoCommand1(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponseNoCommand2(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponseNoCommand3(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponseHandlerOverride1(nlTestSuite * apSuite, void * apContext);
-    static void TestDataResponseHandlerOverride2(nlTestSuite * apSuite, void * apContext);
+    static TestContext ctx;
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+
+    static void TestNoHandler();
+    static void TestDataResponse();
+    static void TestDataResponseNoCommand1();
+    static void TestDataResponseNoCommand2();
+    static void TestDataResponseNoCommand3();
+    static void TestDataResponseHandlerOverride1();
+    static void TestDataResponseHandlerOverride2();
 
 private:
-    static void TestDataResponseHelper(nlTestSuite * apSuite, void * apContext, const EmberAfEndpointType * aEndpoint,
-                                       bool aExpectSuccess);
+    static void TestDataResponseHelper(const EmberAfEndpointType * aEndpoint, bool aExpectSuccess);
 };
+
+TestContext TestCommandInteraction::ctx;
 
 // We want to send a TestSimpleArgumentRequest::Type, but get a
 // TestStructArrayArgumentResponse in return, so need to shadow the actual
@@ -157,9 +162,12 @@ struct FakeRequest : public Clusters::UnitTesting::Commands::TestSimpleArgumentR
     using ResponseType = Clusters::UnitTesting::Commands::TestStructArrayArgumentResponse::DecodableType;
 };
 
-void TestCommandInteraction::TestNoHandler(nlTestSuite * apSuite, void * apContext)
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
+
+STATIC_TEST(TestCommandInteraction, TestNoHandler)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
     FakeRequest request;
     auto sessionHandle = ctx.GetSessionBobToAlice();
 
@@ -167,20 +175,18 @@ void TestCommandInteraction::TestNoHandler(nlTestSuite * apSuite, void * apConte
 
     // Passing of stack variables by reference is only safe because of synchronous completion of the interaction. Otherwise, it's
     // not safe to do so.
-    auto onSuccessCb = [apSuite](const app::ConcreteCommandPath & commandPath, const app::StatusIB & aStatus,
-                                 const auto & dataResponse) {
+    auto onSuccessCb = [](const app::ConcreteCommandPath & commandPath, const app::StatusIB & aStatus, const auto & dataResponse) {
         //
         // We shouldn't be arriving here, since we don't have a command handler installed.
         //
-        NL_TEST_ASSERT(apSuite, false);
+        EXPECT_TRUE(false);
     };
 
     // Passing of stack variables by reference is only safe because of synchronous completion of the interaction. Otherwise, it's
     // not safe to do so.
-    auto onFailureCb = [apSuite](CHIP_ERROR aError) {
-        NL_TEST_ASSERT(apSuite,
-                       aError.IsIMStatus() &&
-                           app::StatusIB(aError).mStatus == Protocols::InteractionModel::Status::UnsupportedEndpoint);
+    auto onFailureCb = [](CHIP_ERROR aError) {
+        EXPECT_TRUE(aError.IsIMStatus() &&
+                    app::StatusIB(aError).mStatus == Protocols::InteractionModel::Status::UnsupportedEndpoint);
     };
 
     responseDirective = kSendDataResponse;
@@ -190,7 +196,7 @@ void TestCommandInteraction::TestNoHandler(nlTestSuite * apSuite, void * apConte
 
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 }
 
 static const int kDescriptorAttributeArraySize = 254;
@@ -238,10 +244,8 @@ DECLARE_DYNAMIC_CLUSTER(chip::app::Clusters::UnitTesting::Id, testClusterAttrs, 
 
 DECLARE_DYNAMIC_ENDPOINT(testEndpoint3, testEndpointClusters3);
 
-void TestCommandInteraction::TestDataResponseHelper(nlTestSuite * apSuite, void * apContext, const EmberAfEndpointType * aEndpoint,
-                                                    bool aExpectSuccess)
+void TestCommandInteraction::TestDataResponseHelper(const EmberAfEndpointType * aEndpoint, bool aExpectSuccess)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
     FakeRequest request;
     auto sessionHandle = ctx.GetSessionBobToAlice();
 
@@ -262,23 +266,23 @@ void TestCommandInteraction::TestDataResponseHelper(nlTestSuite * apSuite, void 
 
     // Passing of stack variables by reference is only safe because of synchronous completion of the interaction. Otherwise, it's
     // not safe to do so.
-    auto onSuccessCb = [apSuite, &onSuccessWasCalled](const app::ConcreteCommandPath & commandPath, const app::StatusIB & aStatus,
-                                                      const auto & dataResponse) {
+    auto onSuccessCb = [&onSuccessWasCalled](const app::ConcreteCommandPath & commandPath, const app::StatusIB & aStatus,
+                                             const auto & dataResponse) {
         uint8_t i = 0;
         auto iter = dataResponse.arg1.begin();
         while (iter.Next())
         {
             auto & item = iter.GetValue();
 
-            NL_TEST_ASSERT(apSuite, item.a == i);
-            NL_TEST_ASSERT(apSuite, item.b == false);
-            NL_TEST_ASSERT(apSuite, item.c.a == i);
-            NL_TEST_ASSERT(apSuite, item.c.b == true);
+            EXPECT_TRUE(item.a == i);
+            EXPECT_TRUE(item.b == false);
+            EXPECT_TRUE(item.c.a == i);
+            EXPECT_TRUE(item.c.b == true);
             i++;
         }
 
-        NL_TEST_ASSERT(apSuite, iter.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(apSuite, dataResponse.arg6 == true);
+        EXPECT_TRUE(iter.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(dataResponse.arg6 == true);
 
         onSuccessWasCalled = true;
     };
@@ -294,31 +298,31 @@ void TestCommandInteraction::TestDataResponseHelper(nlTestSuite * apSuite, void 
 
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, onSuccessWasCalled == aExpectSuccess && onFailureWasCalled != aExpectSuccess);
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(onSuccessWasCalled == aExpectSuccess && onFailureWasCalled != aExpectSuccess);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     onSuccessWasCalled = false;
     onFailureWasCalled = false;
 
-    auto readSuccessCb = [apSuite, &onSuccessWasCalled, aExpectSuccess](const ConcreteDataAttributePath &,
-                                                                        const DataModel::DecodableList<CommandId> & commandList) {
+    auto readSuccessCb = [&onSuccessWasCalled, aExpectSuccess](const ConcreteDataAttributePath &,
+                                                               const DataModel::DecodableList<CommandId> & commandList) {
         auto count = 0;
         auto iter  = commandList.begin();
         while (iter.Next())
         {
             // We only expect 0 or 1 command ids here.
-            NL_TEST_ASSERT(apSuite, count == 0);
-            NL_TEST_ASSERT(apSuite, iter.GetValue() == Clusters::UnitTesting::Commands::TestSimpleArgumentRequest::Id);
+            EXPECT_TRUE(count == 0);
+            EXPECT_TRUE(iter.GetValue() == Clusters::UnitTesting::Commands::TestSimpleArgumentRequest::Id);
             ++count;
         }
-        NL_TEST_ASSERT(apSuite, iter.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(iter.GetStatus() == CHIP_NO_ERROR);
         if (aExpectSuccess)
         {
-            NL_TEST_ASSERT(apSuite, count == 1);
+            EXPECT_TRUE(count == 1);
         }
         else
         {
-            NL_TEST_ASSERT(apSuite, count == 0);
+            EXPECT_TRUE(count == 0);
         }
         onSuccessWasCalled = true;
     };
@@ -332,88 +336,56 @@ void TestCommandInteraction::TestDataResponseHelper(nlTestSuite * apSuite, void 
 
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, onSuccessWasCalled && !onFailureWasCalled);
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(onSuccessWasCalled && !onFailureWasCalled);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     emberAfClearDynamicEndpoint(0);
 }
 
-void TestCommandInteraction::TestDataResponse(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponse)
 {
     TestClusterCommandHandler commandHandler;
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint1, true);
+    TestDataResponseHelper(&testEndpoint1, true);
 }
 
-void TestCommandInteraction::TestDataResponseNoCommand1(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponseNoCommand1)
 {
     // Check what happens if we don't claim our command id is supported, by
     // overriding the acceptedCommandList with an empty list.
     TestClusterCommandHandler commandHandler;
     commandHandler.OverrideAcceptedCommands();
     commandHandler.ClaimNoCommands();
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint1, false);
+    TestDataResponseHelper(&testEndpoint1, false);
 }
 
-void TestCommandInteraction::TestDataResponseNoCommand2(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponseNoCommand2)
 {
     // Check what happens if we don't claim our command id is supported, by
     // having an acceptedCommandList that ends immediately.
     TestClusterCommandHandler commandHandler;
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint2, false);
+    TestDataResponseHelper(&testEndpoint2, false);
 }
 
-void TestCommandInteraction::TestDataResponseNoCommand3(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponseNoCommand3)
 {
     // Check what happens if we don't claim our command id is supported, by
     // having an acceptedCommandList that is null.
     TestClusterCommandHandler commandHandler;
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint3, false);
+    TestDataResponseHelper(&testEndpoint3, false);
 }
 
-void TestCommandInteraction::TestDataResponseHandlerOverride1(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponseHandlerOverride1)
 {
     TestClusterCommandHandler commandHandler;
     commandHandler.OverrideAcceptedCommands();
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint2, true);
+    TestDataResponseHelper(&testEndpoint2, true);
 }
 
-void TestCommandInteraction::TestDataResponseHandlerOverride2(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestCommandInteraction, TestDataResponseHandlerOverride2)
 {
     TestClusterCommandHandler commandHandler;
     commandHandler.OverrideAcceptedCommands();
-    TestDataResponseHelper(apSuite, apContext, &testEndpoint3, true);
+    TestDataResponseHelper(&testEndpoint3, true);
 }
-
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestNoHandler", TestCommandInteraction::TestNoHandler),
-    NL_TEST_DEF("TestDataResponse", TestCommandInteraction::TestDataResponse),
-    NL_TEST_DEF("TestDataResponseNoCommand1", TestCommandInteraction::TestDataResponseNoCommand1),
-    NL_TEST_DEF("TestDataResponseNoCommand2", TestCommandInteraction::TestDataResponseNoCommand2),
-    NL_TEST_DEF("TestDataResponseNoCommand3", TestCommandInteraction::TestDataResponseNoCommand3),
-    NL_TEST_DEF("TestDataResponseHandlerOverride1", TestCommandInteraction::TestDataResponseHandlerOverride1),
-    NL_TEST_DEF("TestDataResponseHandlerOverride2", TestCommandInteraction::TestDataResponseHandlerOverride2),
-    NL_TEST_SENTINEL()
-};
-
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestCommands",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
 
 } // namespace
-
-int TestCommandInteractionTest()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestCommandInteractionTest)

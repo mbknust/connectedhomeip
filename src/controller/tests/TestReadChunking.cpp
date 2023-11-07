@@ -33,15 +33,15 @@
 #include <app/util/attribute-storage.h>
 #include <controller/InvokeInteraction.h>
 #include <functional>
+#include <gtest/gtest.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <map>
 #include <messaging/tests/MessagingContext.h>
-#include <nlunit-test.h>
 #include <utility>
 
 using TestContext = chip::Test::AppContext;
@@ -52,8 +52,6 @@ using namespace chip::app::Clusters;
 namespace {
 
 uint32_t gIterationCount = 0;
-nlTestSuite * gSuite     = nullptr;
-TestContext * gCtx       = nullptr;
 
 //
 // The generated endpoint_config for the controller app has Endpoint 1
@@ -72,18 +70,24 @@ constexpr AttributeId kTestBadAttribute =
 
 constexpr int kListAttributeItems = 5;
 
-class TestReadChunking
+class TestReadChunking : public ::testing::Test
 {
 public:
     TestReadChunking() {}
-    static void TestChunking(nlTestSuite * apSuite, void * apContext);
-    static void TestListChunking(nlTestSuite * apSuite, void * apContext);
-    static void TestBadChunking(nlTestSuite * apSuite, void * apContext);
-    static void TestDynamicEndpoint(nlTestSuite * apSuite, void * apContext);
-    static void TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void * apContext);
+    static TestContext ctx;
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+
+    static void TestChunking();
+    static void TestListChunking();
+    static void TestBadChunking();
+    static void TestDynamicEndpoint();
+    static void TestSetDirtyBetweenChunks();
 
 private:
 };
+
+TestContext TestReadChunking::ctx;
 
 //clang-format off
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(testClusterAttrs)
@@ -265,30 +269,30 @@ void TestReadCallback::OnAttributeData(const app::ConcreteDataAttributePath & aP
     if (aPath.mAttributeId == Globals::Attributes::GeneratedCommandList::Id)
     {
         app::DataModel::DecodableList<CommandId> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
         while (it.Next())
         {
-            NL_TEST_ASSERT(gSuite, false);
+            EXPECT_TRUE(false);
         }
-        NL_TEST_ASSERT(gSuite, it.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 0);
+        EXPECT_TRUE(it.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 0);
     }
     else if (aPath.mAttributeId == Globals::Attributes::AcceptedCommandList::Id)
     {
         app::DataModel::DecodableList<CommandId> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
         while (it.Next())
         {
-            NL_TEST_ASSERT(gSuite, false);
+            EXPECT_TRUE(false);
         }
-        NL_TEST_ASSERT(gSuite, it.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 0);
+        EXPECT_TRUE(it.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 0);
     }
 #if CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE
     else if (aPath.mAttributeId == Globals::Attributes::EventList::Id)
@@ -303,22 +307,22 @@ void TestReadCallback::OnAttributeData(const app::ConcreteDataAttributePath & aP
     else if (aPath.mAttributeId != kTestListAttribute)
     {
         uint8_t v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v == (uint8_t) gIterationCount);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(v == (uint8_t) gIterationCount);
     }
     else
     {
         app::DataModel::DecodableList<uint8_t> v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         auto it          = v.begin();
         size_t arraySize = 0;
         while (it.Next())
         {
-            NL_TEST_ASSERT(gSuite, it.GetValue() == static_cast<uint8_t>(gIterationCount));
+            EXPECT_TRUE(it.GetValue() == static_cast<uint8_t>(gIterationCount));
         }
-        NL_TEST_ASSERT(gSuite, it.GetStatus() == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, arraySize == 5);
+        EXPECT_TRUE(it.GetStatus() == CHIP_NO_ERROR);
+        EXPECT_TRUE(v.ComputeSize(&arraySize) == CHIP_NO_ERROR);
+        EXPECT_TRUE(arraySize == 5);
     }
     mAttributeCount++;
 }
@@ -442,13 +446,13 @@ void TestMutableReadCallback::OnAttributeData(const app::ConcreteDataAttributePa
                                               const app::StatusIB & aStatus)
 {
     VerifyOrReturn(apData != nullptr);
-    NL_TEST_ASSERT(gSuite, aPath.mClusterId == Clusters::UnitTesting::Id);
+    EXPECT_TRUE(aPath.mClusterId == Clusters::UnitTesting::Id);
 
     mAttributeCount++;
     if (aPath.mAttributeId <= 5)
     {
         uint8_t v;
-        NL_TEST_ASSERT(gSuite, app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
+        EXPECT_TRUE(app::DataModel::Decode(*apData, v) == CHIP_NO_ERROR);
         mValues[std::make_pair(aPath.mEndpointId, aPath.mAttributeId)] = v;
 
         auto action = mActionOn.find(std::make_pair(aPath.mEndpointId, aPath.mAttributeId));
@@ -464,6 +468,10 @@ void TestMutableReadCallback::OnAttributeData(const app::ConcreteDataAttributePa
     }
     // Ignore all other attributes, we don't care above the global attributes.
 }
+
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
 
 /*
  * This validates all the various corner cases encountered during chunking by
@@ -482,9 +490,8 @@ void TestMutableReadCallback::OnAttributeData(const app::ConcreteDataAttributePa
  * as we can possibly cover.
  *
  */
-void TestReadChunking::TestChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadChunking, TestChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -519,23 +526,23 @@ void TestReadChunking::TestChunking(nlTestSuite * apSuite, void * apContext)
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mOnReportEnd);
 
         //
         // Always returns the same number of attributes read (5 + revision + GlobalAttributesNotInMetadata).
         //
-        NL_TEST_ASSERT(apSuite, readCallback.mAttributeCount == 6 + ArraySize(GlobalAttributesNotInMetadata));
+        EXPECT_TRUE(readCallback.mAttributeCount == 6 + ArraySize(GlobalAttributesNotInMetadata));
         readCallback.mAttributeCount = 0;
 
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
         //
         // Stop the test if we detected an error. Otherwise, it'll be difficult to read the logs.
         //
-        if (apSuite->flagError)
+        if (Test::HasFailure())
         {
             break;
         }
@@ -545,9 +552,8 @@ void TestReadChunking::TestChunking(nlTestSuite * apSuite, void * apContext)
 }
 
 // Similar to the test above, but for the list chunking feature.
-void TestReadChunking::TestListChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadChunking, TestListChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -595,7 +601,7 @@ void TestReadChunking::TestListChunking(nlTestSuite * apSuite, void * apContext)
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
@@ -606,14 +612,13 @@ void TestReadChunking::TestListChunking(nlTestSuite * apSuite, void * apContext)
         {
             gotFailureResponse = true;
             // Check for the right error type.
-            NL_TEST_ASSERT(apSuite,
-                           StatusIB(readCallback.mReadError).mStatus == Protocols::InteractionModel::Status::ResourceExhausted);
+            EXPECT_TRUE(StatusIB(readCallback.mReadError).mStatus == Protocols::InteractionModel::Status::ResourceExhausted);
         }
         else
         {
             gotSuccessfulEncode = true;
 
-            NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
+            EXPECT_TRUE(readCallback.mOnReportEnd);
 
             //
             // Always returns the same number of attributes read (merged by buffered read callback). The content is checked in
@@ -622,35 +627,34 @@ void TestReadChunking::TestListChunking(nlTestSuite * apSuite, void * apContext)
             // just a replace of the first read's path and buffers it all up as a
             // single value.
             //
-            NL_TEST_ASSERT(apSuite, readCallback.mAttributeCount == 1);
+            EXPECT_TRUE(readCallback.mAttributeCount == 1);
             readCallback.mAttributeCount = 0;
 
             // Check that we never saw an empty-list data IB.
-            NL_TEST_ASSERT(apSuite, !readCallback.mBufferedCallback.mDecodingFailed);
-            NL_TEST_ASSERT(apSuite, !readCallback.mBufferedCallback.mSawEmptyList);
+            EXPECT_TRUE(!readCallback.mBufferedCallback.mDecodingFailed);
+            EXPECT_TRUE(!readCallback.mBufferedCallback.mSawEmptyList);
         }
 
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
         //
         // Stop the test if we detected an error. Otherwise, it'll be difficult to read the logs.
         //
-        if (apSuite->flagError)
+        if (Test::HasFailure())
         {
             break;
         }
     }
 
     // If this fails, our smallest packet size was not small enough.
-    NL_TEST_ASSERT(apSuite, gotFailureResponse);
+    EXPECT_TRUE(gotFailureResponse);
 
     emberAfClearDynamicEndpoint(0);
 }
 
 // Read an attribute that can never fit into the buffer. Result in an empty report, server should shutdown the transaction.
-void TestReadChunking::TestBadChunking(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadChunking, TestBadChunking)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -675,7 +679,7 @@ void TestReadChunking::TestBadChunking(nlTestSuite * apSuite, void * apContext)
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Read);
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
@@ -684,15 +688,15 @@ void TestReadChunking::TestBadChunking(nlTestSuite * apSuite, void * apContext)
         //
 
         // Nothing is actually encoded. buffered callback does not handle the message to us.
-        NL_TEST_ASSERT(apSuite, readCallback.mAttributeCount == 0);
-        NL_TEST_ASSERT(apSuite, !readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mAttributeCount == 0);
+        EXPECT_TRUE(!readCallback.mOnReportEnd);
 
         // The server should shutted down, while the client is still alive (pending for the attribute data.)
-        NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     // Sanity check
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     emberAfClearDynamicEndpoint(0);
 }
@@ -700,9 +704,8 @@ void TestReadChunking::TestBadChunking(nlTestSuite * apSuite, void * apContext)
 /*
  * This test contains two parts, one is to enable a new endpoint on the fly, another is to disable it and re-enable it.
  */
-void TestReadChunking::TestDynamicEndpoint(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadChunking, TestDynamicEndpoint)
 {
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
 
@@ -722,17 +725,16 @@ void TestReadChunking::TestDynamicEndpoint(nlTestSuite * apSuite, void * apConte
     TestReadCallback readCallback;
 
     {
-
         app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                    app::ReadClient::InteractionType::Subscribe);
         // Enable the new endpoint
         emberAfSetDynamicEndpoint(0, kTestEndpointId, &testEndpoint, Span<DataVersion>(dataVersionStorage));
 
-        NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+        EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
 
-        NL_TEST_ASSERT(apSuite, readCallback.mOnSubscriptionEstablished);
+        EXPECT_TRUE(readCallback.mOnSubscriptionEstablished);
         readCallback.mAttributeCount = 0;
 
         emberAfSetDynamicEndpoint(0, kTestEndpointId4, &testEndpoint4, Span<DataVersion>(dataVersionStorage));
@@ -741,12 +743,11 @@ void TestReadChunking::TestDynamicEndpoint(nlTestSuite * apSuite, void * apConte
 
         // Ensure we have received the report, we do not care about the initial report here.
         // GlobalAttributesNotInMetadata attributes are not included in testClusterAttrsOnEndpoint4.
-        NL_TEST_ASSERT(apSuite,
-                       readCallback.mAttributeCount ==
-                           ArraySize(testClusterAttrsOnEndpoint4) + ArraySize(GlobalAttributesNotInMetadata));
+        EXPECT_TRUE(readCallback.mAttributeCount ==
+                    ArraySize(testClusterAttrsOnEndpoint4) + ArraySize(GlobalAttributesNotInMetadata));
 
         // We have received all report data.
-        NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mOnReportEnd);
 
         readCallback.mAttributeCount = 0;
         readCallback.mOnReportEnd    = false;
@@ -768,12 +769,11 @@ void TestReadChunking::TestDynamicEndpoint(nlTestSuite * apSuite, void * apConte
 
         // Ensure we have received the report, we do not care about the initial report here.
         // GlobalAttributesNotInMetadata attributes are not included in testClusterAttrsOnEndpoint4.
-        NL_TEST_ASSERT(apSuite,
-                       readCallback.mAttributeCount ==
-                           ArraySize(testClusterAttrsOnEndpoint4) + ArraySize(GlobalAttributesNotInMetadata));
+        EXPECT_TRUE(readCallback.mAttributeCount ==
+                    ArraySize(testClusterAttrsOnEndpoint4) + ArraySize(GlobalAttributesNotInMetadata));
 
         // We have received all report data.
-        NL_TEST_ASSERT(apSuite, readCallback.mOnReportEnd);
+        EXPECT_TRUE(readCallback.mOnReportEnd);
     }
 
     chip::test_utils::SleepMillis(secondsToMilliseconds(2));
@@ -781,7 +781,7 @@ void TestReadChunking::TestDynamicEndpoint(nlTestSuite * apSuite, void * apConte
     // Destroying the read client will terminate the subscription transaction.
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     emberAfClearDynamicEndpoint(0);
 }
@@ -842,17 +842,18 @@ struct Instruction
 void DriveIOUntilSubscriptionEstablished(TestMutableReadCallback * callback)
 {
     callback->mOnReportEnd = false;
-    gCtx->GetIOContext().DriveIOUntil(System::Clock::Seconds16(5), [&]() { return callback->mOnSubscriptionEstablished; });
-    NL_TEST_ASSERT(gSuite, callback->mOnReportEnd);
-    NL_TEST_ASSERT(gSuite, callback->mOnSubscriptionEstablished);
+    TestReadChunking::ctx.GetIOContext().DriveIOUntil(System::Clock::Seconds16(5),
+                                                      [&]() { return callback->mOnSubscriptionEstablished; });
+    EXPECT_TRUE(callback->mOnReportEnd);
+    EXPECT_TRUE(callback->mOnSubscriptionEstablished);
     callback->mActionOn.clear();
 }
 
 void DriveIOUntilEndOfReport(TestMutableReadCallback * callback)
 {
     callback->mOnReportEnd = false;
-    gCtx->GetIOContext().DriveIOUntil(System::Clock::Seconds16(5), [&]() { return callback->mOnReportEnd; });
-    NL_TEST_ASSERT(gSuite, callback->mOnReportEnd);
+    TestReadChunking::ctx.GetIOContext().DriveIOUntil(System::Clock::Seconds16(5), [&]() { return callback->mOnReportEnd; });
+    EXPECT_TRUE(callback->mOnReportEnd);
     callback->mActionOn.clear();
 }
 
@@ -860,7 +861,7 @@ void CheckValues(TestMutableReadCallback * callback, std::vector<AttributeWithVa
 {
     for (const auto & vals : expectedValues)
     {
-        NL_TEST_ASSERT(gSuite, callback->mValues[vals.first] == vals.second);
+        EXPECT_TRUE(callback->mValues[vals.first] == vals.second);
     }
 }
 
@@ -873,7 +874,7 @@ void ExpectSameDataVersions(TestMutableReadCallback * callback, AttributesList a
     DataVersion expectedVersion = callback->mDataVersions[attrList[0]];
     for (const auto & attr : attrList)
     {
-        NL_TEST_ASSERT(gSuite, callback->mDataVersions[attr] == expectedVersion);
+        EXPECT_TRUE(callback->mDataVersions[attr] == expectedVersion);
     }
 }
 
@@ -898,15 +899,11 @@ void DoTest(TestMutableReadCallback * callback, Instruction instruction)
 
 }; // namespace TestSetDirtyBetweenChunksUtil
 
-void TestReadChunking::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReadChunking, TestSetDirtyBetweenChunks)
 {
     using namespace TestSetDirtyBetweenChunksUtil;
-    TestContext & ctx                    = *static_cast<TestContext *>(apContext);
     auto sessionHandle                   = ctx.GetSessionBobToAlice();
     app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
-
-    gCtx   = &ctx;
-    gSuite = apSuite;
 
     // Initialize the ember side server logic
     InitDataModelHandler();
@@ -942,7 +939,7 @@ void TestReadChunking::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void * a
             app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                        app::ReadClient::InteractionType::Subscribe);
 
-            NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+            EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
             // CASE 1 -- Touch an attribute during priming report, then verify it is included in first report after priming report.
             {
@@ -1021,7 +1018,7 @@ void TestReadChunking::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void * a
             app::ReadClient readClient(engine, &ctx.GetExchangeManager(), readCallback.mBufferedCallback,
                                        app::ReadClient::InteractionType::Subscribe);
 
-            NL_TEST_ASSERT(apSuite, readClient.SendRequest(readParams) == CHIP_NO_ERROR);
+            EXPECT_TRUE(readClient.SendRequest(readParams) == CHIP_NO_ERROR);
 
             DriveIOUntilSubscriptionEstablished(&readCallback);
 
@@ -1046,42 +1043,11 @@ void TestReadChunking::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void * a
     // Destroying the read client will terminate the subscription transaction.
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 
     emberAfClearDynamicEndpoint(1);
     emberAfClearDynamicEndpoint(0);
     app::InteractionModelEngine::GetInstance()->GetReportingEngine().SetMaxAttributesPerChunk(UINT32_MAX);
 }
 
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestChunking", TestReadChunking::TestChunking),
-    NL_TEST_DEF("TestListChunking", TestReadChunking::TestListChunking),
-    NL_TEST_DEF("TestBadChunking", TestReadChunking::TestBadChunking),
-    NL_TEST_DEF("TestDynamicEndpoint", TestReadChunking::TestDynamicEndpoint),
-    NL_TEST_DEF("TestSetDirtyBetweenChunks", TestReadChunking::TestSetDirtyBetweenChunks),
-    NL_TEST_SENTINEL()
-};
-
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestReadChunking",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-int TestReadChunkingTests()
-{
-    gSuite = &sSuite;
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestReadChunkingTests)
