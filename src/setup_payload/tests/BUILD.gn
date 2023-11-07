@@ -30,7 +30,14 @@ chip_test_suite("tests") {
 
   sources = [ "TestHelpers.h" ]
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
+  ]
 
   public_deps = [
     "${chip_root}/src/lib/support:testing",
