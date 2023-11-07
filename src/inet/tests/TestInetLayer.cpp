@@ -235,7 +235,6 @@ static void HandleSignal(int aSignal)
 {
     switch (aSignal)
     {
-
     case SIGUSR1:
         SetStatusFailed(sTestState.mStatus);
         break;
@@ -332,7 +331,6 @@ static bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdent
 
     switch (aIdentifier)
     {
-
     case kToolOptInterval:
         if (!ParseInt(aValue, gSendIntervalMs))
         {

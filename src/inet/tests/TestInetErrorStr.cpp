@@ -39,9 +39,8 @@
 #include <inet/InetError.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using namespace chip;
 
@@ -69,7 +68,7 @@ static const CHIP_ERROR kTestElements[] =
 };
 // clang-format on
 
-static void CheckInetErrorStr(nlTestSuite * inSuite, void * inContext)
+TEST(TestInetErrorStr, CheckInetErrorStr)
 {
     // Register the layer error formatter
     Inet::RegisterLayerErrorFormatter();
@@ -82,45 +81,12 @@ static void CheckInetErrorStr(nlTestSuite * inSuite, void * inContext)
 
         // Assert that the error string contains the error number in hex.
         snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err.AsInteger());
-        NL_TEST_ASSERT(inSuite, (strstr(errStr, expectedText) != nullptr));
+        ASSERT_TRUE((strstr(errStr, expectedText) != nullptr));
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR
         // Assert that the error string contains a description, which is signaled
         // by a presence of a colon proceeding the description.
-        NL_TEST_ASSERT(inSuite, (strchr(errStr, ':') != nullptr));
+        ASSERT_TRUE((strchr(errStr, ':') != nullptr));
 #endif // !CHIP_CONFIG_SHORT_ERROR_STR
     }
 }
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("InetErrorStr", CheckInetErrorStr),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestInetErrorStr()
-{
-    // clang-format off
-    nlTestSuite theSuite =
-	{
-        "Inet-Error-Strings",
-        &sTests[0],
-        nullptr,
-        nullptr
-    };
-    // clang-format on
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestInetErrorStr)

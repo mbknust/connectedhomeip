@@ -175,7 +175,6 @@ void InitSystemLayer()
 
 void ShutdownSystemLayer()
 {
-
     gSystemLayer.Shutdown();
 
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
