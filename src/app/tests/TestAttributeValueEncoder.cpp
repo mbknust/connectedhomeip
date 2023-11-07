@@ -25,9 +25,8 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/AttributeAccessInterface.h>
 #include <app/MessageDef/AttributeDataIB.h>
+#include <gtest/gtest.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -47,7 +46,7 @@ constexpr FabricIndex kTestFabricIndex   = 1;
 template <size_t N>
 struct LimitedTestSetup
 {
-    LimitedTestSetup(nlTestSuite * aSuite, const FabricIndex aFabricIndex = kUndefinedFabricIndex,
+    LimitedTestSetup(const FabricIndex aFabricIndex                             = kUndefinedFabricIndex,
                      const AttributeValueEncoder::AttributeEncodeState & aState = AttributeValueEncoder::AttributeEncodeState()) :
         encoder(builder, aFabricIndex, ConcreteAttributePath(kRandomEndpointId, kRandomClusterId, kRandomAttributeId),
                 kRandomDataVersion, aFabricIndex != kUndefinedFabricIndex, aState)
@@ -56,11 +55,11 @@ struct LimitedTestSetup
         {
             TLVType ignored;
             CHIP_ERROR err = writer.StartContainer(AnonymousTag(), kTLVType_Structure, ignored);
-            NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
         }
         {
             CHIP_ERROR err = builder.Init(&writer, 1);
-            NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
         }
     }
 
@@ -74,11 +73,11 @@ using TestSetup = LimitedTestSetup<1024>;
 
 // Macro so we get better error reporting in terms of which test failed, because
 // the reporting uses __LINE__.
-#define VERIFY_BUFFER_STATE(aSuite, aSetup, aExpected)                                                                             \
+#define VERIFY_BUFFER_STATE(aSetup, aExpected)                                                                                     \
     do                                                                                                                             \
     {                                                                                                                              \
-        NL_TEST_ASSERT(aSuite, aSetup.writer.GetLengthWritten() == sizeof(aExpected));                                             \
-        NL_TEST_ASSERT(aSuite, memcmp(aSetup.buf, aExpected, sizeof(aExpected)) == 0);                                             \
+        EXPECT_TRUE(aSetup.writer.GetLengthWritten() == sizeof(aExpected));                                                        \
+        EXPECT_TRUE(memcmp(aSetup.buf, aExpected, sizeof(aExpected)) == 0);                                                        \
         if (aSetup.writer.GetLengthWritten() != sizeof(aExpected) || memcmp(aSetup.buf, aExpected, sizeof(aExpected)) != 0)        \
         {                                                                                                                          \
             printf("Encoded: \n");                                                                                                 \
@@ -96,19 +95,19 @@ using TestSetup = LimitedTestSetup<1024>;
         }                                                                                                                          \
     } while (0)
 
-void TestEncodeNothing(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeNothing)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     // Just have an anonymous struct marker, and the AttributeReportIBs opened.
     const uint8_t expected[] = { 0x15, 0x36, 0x01 };
-    VERIFY_BUFFER_STATE(aSuite, test, expected);
+    VERIFY_BUFFER_STATE(test, expected);
 }
 
-void TestEncodeBool(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeBool)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     CHIP_ERROR err = test.encoder.Encode(true);
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     const uint8_t expected[] = {
         // clang-format off
         0x15, 0x36, 0x01, // Test overhead, Start Anonymous struct + Start 1 byte Tag Array + Tag (01)
@@ -125,15 +124,15 @@ void TestEncodeBool(nlTestSuite * aSuite, void * aContext)
         0x18, // End of container
         // clang-format on
     };
-    VERIFY_BUFFER_STATE(aSuite, test, expected);
+    VERIFY_BUFFER_STATE(test, expected);
 }
 
-void TestEncodeListOfBools1(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeListOfBools1)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     bool list[]    = { true, false };
     CHIP_ERROR err = test.encoder.Encode(DataModel::List<bool>(list));
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     const uint8_t expected[] = {
         // clang-format off
         0x15, 0x36, 0x01, // Test overhead, Start Anonymous struct + Start 1 byte Tag Array + Tag (01)
@@ -153,12 +152,12 @@ void TestEncodeListOfBools1(nlTestSuite * aSuite, void * aContext)
         0x18, // End of attribute structure
         // clang-format on
     };
-    VERIFY_BUFFER_STATE(aSuite, test, expected);
+    VERIFY_BUFFER_STATE(test, expected);
 }
 
-void TestEncodeListOfBools2(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeListOfBools2)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     bool list[]    = { true, false };
     CHIP_ERROR err = test.encoder.EncodeList([&list](const auto & encoder) -> CHIP_ERROR {
         for (auto & item : list)
@@ -167,7 +166,7 @@ void TestEncodeListOfBools2(nlTestSuite * aSuite, void * aContext)
         }
         return CHIP_NO_ERROR;
     });
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     const uint8_t expected[] = {
         // clang-format off
         0x15, 0x36, 0x01, // Test overhead, Start Anonymous struct + Start 1 byte Tag Array + Tag (01)
@@ -187,7 +186,7 @@ void TestEncodeListOfBools2(nlTestSuite * aSuite, void * aContext)
         0x18, // End of attribute structure
         // clang-format on
     };
-    VERIFY_BUFFER_STATE(aSuite, test, expected);
+    VERIFY_BUFFER_STATE(test, expected);
 }
 
 constexpr uint8_t emptyListExpected[] = {
@@ -209,25 +208,25 @@ constexpr uint8_t emptyListExpected[] = {
     // clang-format on
 };
 
-void TestEncodeEmptyList1(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeEmptyList1)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     CHIP_ERROR err = test.encoder.EncodeList([](const auto & encoder) -> CHIP_ERROR { return CHIP_NO_ERROR; });
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
-    VERIFY_BUFFER_STATE(aSuite, test, emptyListExpected);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    VERIFY_BUFFER_STATE(test, emptyListExpected);
 }
 
-void TestEncodeEmptyList2(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeEmptyList2)
 {
-    TestSetup test(aSuite);
+    TestSetup test;
     CHIP_ERROR err = test.encoder.EncodeEmptyList();
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
-    VERIFY_BUFFER_STATE(aSuite, test, emptyListExpected);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    VERIFY_BUFFER_STATE(test, emptyListExpected);
 }
 
-void TestEncodeFabricScoped(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeFabricScoped)
 {
-    TestSetup test(aSuite, kTestFabricIndex);
+    TestSetup test(kTestFabricIndex);
     Clusters::AccessControl::Structs::AccessControlExtensionStruct::Type items[3];
     items[0].fabricIndex = 1;
     items[1].fabricIndex = 2;
@@ -241,7 +240,7 @@ void TestEncodeFabricScoped(nlTestSuite * aSuite, void * aContext)
         }
         return CHIP_NO_ERROR;
     });
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     const uint8_t expected[] = {
         // clang-format off
         0x15, 0x36, 0x01, // Test overhead, Start Anonymous struct + Start 1 byte Tag Array + Tag (01)
@@ -263,10 +262,10 @@ void TestEncodeFabricScoped(nlTestSuite * aSuite, void * aContext)
         0x18, // End of attribute structure
         // clang-format on
     };
-    VERIFY_BUFFER_STATE(aSuite, test, expected);
+    VERIFY_BUFFER_STATE(test, expected);
 }
 
-void TestEncodeListChunking(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeListChunking)
 {
     AttributeValueEncoder::AttributeEncodeState state;
 
@@ -287,9 +286,9 @@ void TestEncodeListChunking(nlTestSuite * aSuite, void * aContext)
         // corresponding to the "test overhead" container starts.  But TLVWriter automatically
         // reserves space when containers are opened, so we have to have enough space to have
         // encoded those last two close containers.
-        LimitedTestSetup<30> test1(aSuite, kTestFabricIndex);
+        LimitedTestSetup<30> test1(kTestFabricIndex);
         CHIP_ERROR err = test1.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         state = test1.encoder.GetState();
 
         const uint8_t expected[] = {
@@ -311,14 +310,14 @@ void TestEncodeListChunking(nlTestSuite * aSuite, void * aContext)
             0x18, // End of attribute structure
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test1, expected);
+        VERIFY_BUFFER_STATE(test1, expected);
     }
     {
         // Use 30 bytes buffer to force chunking after the second "false". The kTestFabricIndex is
         // not effective in this test.
-        LimitedTestSetup<30> test2(aSuite, 0, state);
+        LimitedTestSetup<30> test2(0, state);
         CHIP_ERROR err = test2.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         state = test2.encoder.GetState();
 
         const uint8_t expected[] = {
@@ -338,13 +337,13 @@ void TestEncodeListChunking(nlTestSuite * aSuite, void * aContext)
             0x18, // End of container
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test2, expected);
+        VERIFY_BUFFER_STATE(test2, expected);
     }
     {
         // Allow encoding everything else. The kTestFabricIndex is not effective in this test.
-        TestSetup test3(aSuite, 0, state);
+        TestSetup test3(0, state);
         CHIP_ERROR err = test3.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         const uint8_t expected[] = {
             // clang-format off
@@ -387,11 +386,11 @@ void TestEncodeListChunking(nlTestSuite * aSuite, void * aContext)
             0x18, // End of container
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test3, expected);
+        VERIFY_BUFFER_STATE(test3, expected);
     }
 }
 
-void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
+TEST(AttributeValueEncoder, TestEncodeListChunking2)
 {
     AttributeValueEncoder::AttributeEncodeState state;
 
@@ -412,9 +411,9 @@ void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
         // corresponding to the "test overhead" container starts.  But TLVWriter automatically
         // reserves space when containers are opened, so we have to have enough space to have
         // encoded those last two close containers.
-        LimitedTestSetup<28> test1(aSuite, kTestFabricIndex);
+        LimitedTestSetup<28> test1(kTestFabricIndex);
         CHIP_ERROR err = test1.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         state = test1.encoder.GetState();
 
         const uint8_t expected[] = {
@@ -434,14 +433,14 @@ void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
             0x18, // End of attribute structure
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test1, expected);
+        VERIFY_BUFFER_STATE(test1, expected);
     }
     {
         // Use 30 bytes buffer to force chunking after the first "true". The kTestFabricIndex is not
         // effective in this test.
-        LimitedTestSetup<30> test2(aSuite, 0, state);
+        LimitedTestSetup<30> test2(0, state);
         CHIP_ERROR err = test2.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         state = test2.encoder.GetState();
 
         const uint8_t expected[] = {
@@ -461,14 +460,14 @@ void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
             0x18, // End of container
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test2, expected);
+        VERIFY_BUFFER_STATE(test2, expected);
     }
     {
         // Use 60 bytes buffer to force chunking after the second "false". The kTestFabricIndex is not
         // effective in this test.
-        LimitedTestSetup<60> test3(aSuite, 0, state);
+        LimitedTestSetup<60> test3(0, state);
         CHIP_ERROR err = test3.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         state = test3.encoder.GetState();
 
         const uint8_t expected[] = {
@@ -500,13 +499,13 @@ void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
             0x18, // End of container
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test3, expected);
+        VERIFY_BUFFER_STATE(test3, expected);
     }
     {
         // Allow encoding everything else. The kTestFabricIndex is not effective in this test.
-        TestSetup test4(aSuite, 0, state);
+        TestSetup test4(0, state);
         CHIP_ERROR err = test4.encoder.EncodeList(listEncoder);
-        NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         const uint8_t expected[] = {
             // clang-format off
@@ -549,38 +548,10 @@ void TestEncodeListChunking2(nlTestSuite * aSuite, void * aContext)
             0x18, // End of container
             // clang-format on
         };
-        VERIFY_BUFFER_STATE(aSuite, test4, expected);
+        VERIFY_BUFFER_STATE(test4, expected);
     }
 }
 
 #undef VERIFY_BUFFER_STATE
 
 } // anonymous namespace
-
-namespace {
-const nlTest sTests[] = {
-    // clang-format off
-    NL_TEST_DEF("TestEncodeNothing", TestEncodeNothing),
-    NL_TEST_DEF("TestEncodeBool", TestEncodeBool),
-    NL_TEST_DEF("TestEncodeEmptyList1", TestEncodeEmptyList1),
-    NL_TEST_DEF("TestEncodeEmptyList2", TestEncodeEmptyList2),
-    NL_TEST_DEF("TestEncodeListOfBools1", TestEncodeListOfBools1),
-    NL_TEST_DEF("TestEncodeListOfBools2", TestEncodeListOfBools2),
-    NL_TEST_DEF("TestEncodeListChunking", TestEncodeListChunking),
-    NL_TEST_DEF("TestEncodeListChunking2", TestEncodeListChunking2),
-    NL_TEST_DEF("TestEncodeFabricScoped", TestEncodeFabricScoped),
-    NL_TEST_SENTINEL()
-    // clang-format on
-};
-}
-
-int TestAttributeValueEncoder()
-{
-    nlTestSuite theSuite = { "AttributeValueEncoder", &sTests[0], nullptr, nullptr };
-
-    nlTestRunner(&theSuite, nullptr);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestAttributeValueEncoder)

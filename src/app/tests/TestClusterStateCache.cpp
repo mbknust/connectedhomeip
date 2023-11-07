@@ -29,10 +29,10 @@
 #include <app/data-model/DecodableList.h>
 #include <app/data-model/Decode.h>
 #include <app/tests/AppTestContext.h>
+#include <gtest/gtest.h>
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
+
 #include <string.h>
 #include <vector>
 
@@ -41,8 +41,6 @@ using namespace chip::app;
 using namespace chip;
 
 namespace {
-
-nlTestSuite * gSuite = nullptr;
 
 struct AttributeInstruction
 {
@@ -130,7 +128,7 @@ public:
 
     void ValidateData(TLV::TLVReader & aData, bool isListOperation)
     {
-        NL_TEST_ASSERT(gSuite, !mExpectedBuffers.empty());
+        EXPECT_TRUE(!mExpectedBuffers.empty());
         if (!mExpectedBuffers.empty() > 0)
         {
             auto buffer = mExpectedBuffers.front();
@@ -139,15 +137,15 @@ public:
             if (isListOperation)
             {
                 // List operation will attach end of container
-                NL_TEST_ASSERT(gSuite, length < aData.GetRemainingLength());
+                EXPECT_TRUE(length < aData.GetRemainingLength());
             }
             else
             {
-                NL_TEST_ASSERT(gSuite, length == aData.GetRemainingLength());
+                EXPECT_TRUE(length == aData.GetRemainingLength());
             }
             if (length <= aData.GetRemainingLength() && length > 0)
             {
-                NL_TEST_ASSERT(gSuite, memcmp(aData.GetReadPoint(), buffer.data(), length) == 0);
+                EXPECT_TRUE(memcmp(aData.GetReadPoint(), buffer.data(), length) == 0);
                 if (memcmp(aData.GetReadPoint(), buffer.data(), length) != 0)
                 {
                     ChipLogProgress(DataManagement, "Failed");
@@ -156,7 +154,7 @@ public:
         }
     }
 
-    void ValidateNoData() { NL_TEST_ASSERT(gSuite, mExpectedBuffers.empty()); }
+    void ValidateNoData() { EXPECT_TRUE(mExpectedBuffers.empty()); }
 
 private:
     std::vector<std::vector<uint8_t>> mExpectedBuffers;
@@ -205,7 +203,7 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
                 ChipLogProgress(DataManagement, "\t -- Generating A");
 
                 Clusters::UnitTesting::Attributes::Int16u::TypeInfo::Type value = instruction.mInstructionId;
-                NL_TEST_ASSERT(gSuite, DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
+                EXPECT_TRUE(DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
                 break;
             }
 
@@ -216,7 +214,7 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
                 uint8_t buf[] = { 'h', 'e', 'l', 'l', 'o' };
                 value         = buf;
 
-                NL_TEST_ASSERT(gSuite, DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
+                EXPECT_TRUE(DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
                 break;
             }
 
@@ -226,7 +224,7 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
                 Clusters::UnitTesting::Attributes::StructAttr::TypeInfo::Type value;
                 value.a = instruction.mInstructionId;
                 value.b = true;
-                NL_TEST_ASSERT(gSuite, DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
+                EXPECT_TRUE(DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
                 break;
             }
 
@@ -245,7 +243,7 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
                 path.mListOp = ConcreteDataAttributePath::ListOperation::ReplaceAll;
 
                 value = buf;
-                NL_TEST_ASSERT(gSuite, DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
+                EXPECT_TRUE(DataModel::Encode(writer, TLV::AnonymousTag(), value) == CHIP_NO_ERROR);
                 break;
             }
 
@@ -257,7 +255,7 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
             writer.Finalize(handle);
             TLV::ScopedBufferTLVReader reader;
             reader.Init(std::move(handle), writtenLength);
-            NL_TEST_ASSERT(gSuite, reader.Next() == CHIP_NO_ERROR);
+            EXPECT_TRUE(reader.Next() == CHIP_NO_ERROR);
             dataCallbackValidator.SetExpectation(reader, instruction.mEndpointId, instruction.mAttributeType);
             callback->OnAttributeData(path, &reader, status);
         }
@@ -287,12 +285,12 @@ private:
         ChipLogProgress(DataManagement, "\t\t -- Validating OnAttributeData callback");
         // Ensure that the provided path is one that we're expecting to find
         auto iter = mExpectedAttributes.find(aPath);
-        NL_TEST_ASSERT(gSuite, iter != mExpectedAttributes.end());
+        EXPECT_TRUE(iter != mExpectedAttributes.end());
 
         if (aStatus.IsSuccess())
         {
             // Verify that the apData is passed as nonnull
-            NL_TEST_ASSERT(gSuite, apData != nullptr);
+            EXPECT_TRUE(apData != nullptr);
             if (apData)
             {
                 mDataCallbackValidator.ValidateData(*apData, aPath.IsListOperation());
@@ -325,8 +323,8 @@ private:
             }
             else
             {
-                NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
-                NL_TEST_ASSERT(gSuite, v == instruction.mInstructionId);
+                EXPECT_TRUE(err == CHIP_NO_ERROR);
+                EXPECT_TRUE(v == instruction.mInstructionId);
             }
 
             break;
@@ -344,8 +342,8 @@ private:
             }
             else
             {
-                NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
-                NL_TEST_ASSERT(gSuite, strncmp((char *) v.data(), "hello", v.size()) == 0);
+                EXPECT_TRUE(err == CHIP_NO_ERROR);
+                EXPECT_TRUE(strncmp((char *) v.data(), "hello", v.size()) == 0);
             }
 
             break;
@@ -363,8 +361,8 @@ private:
             }
             else
             {
-                NL_TEST_ASSERT(gSuite, v.a == instruction.mInstructionId);
-                NL_TEST_ASSERT(gSuite, v.b == true);
+                EXPECT_TRUE(v.a == instruction.mInstructionId);
+                EXPECT_TRUE(v.b == true);
             }
 
             break;
@@ -385,22 +383,22 @@ private:
                 auto listIter = v.begin();
                 while (listIter.Next())
                 {
-                    NL_TEST_ASSERT(gSuite, listIter.GetValue().member1 == instruction.mInstructionId);
+                    EXPECT_TRUE(listIter.GetValue().member1 == instruction.mInstructionId);
                 }
 
-                NL_TEST_ASSERT(gSuite, listIter.GetStatus() == CHIP_NO_ERROR);
+                EXPECT_TRUE(listIter.GetStatus() == CHIP_NO_ERROR);
             }
 
             break;
         }
         }
 
-        NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         if (gotStatus)
         {
             ChipLogProgress(DataManagement, "\t\t -- Validating status");
-            NL_TEST_ASSERT(gSuite, instruction.mValueType == AttributeInstruction::kStatus);
+            EXPECT_TRUE(instruction.mValueType == AttributeInstruction::kStatus);
         }
     }
 
@@ -408,29 +406,28 @@ private:
                              ClusterStateCache * cache)
     {
         std::list<ClusterStateCache::AttributeStatus> statusList;
-        NL_TEST_ASSERT(gSuite, cache->Get(path.mEndpointId, path.mClusterId, clusterValue, statusList) == CHIP_NO_ERROR);
+        EXPECT_TRUE(cache->Get(path.mEndpointId, path.mClusterId, clusterValue, statusList) == CHIP_NO_ERROR);
 
         if (instruction.mValueType == AttributeInstruction::kData)
         {
-            NL_TEST_ASSERT(gSuite, statusList.size() == 0);
+            EXPECT_TRUE(statusList.size() == 0);
 
             switch (instruction.mAttributeType)
             {
             case AttributeInstruction::kAttributeA:
                 ChipLogProgress(DataManagement, "\t\t -- Validating A (Cluster Obj)");
-                NL_TEST_ASSERT(gSuite, clusterValue.int16u == instruction.mInstructionId);
+                EXPECT_TRUE(clusterValue.int16u == instruction.mInstructionId);
                 break;
 
             case AttributeInstruction::kAttributeB:
                 ChipLogProgress(DataManagement, "\t\t -- Validating B (Cluster Obj)");
-                NL_TEST_ASSERT(gSuite,
-                               strncmp((char *) clusterValue.octetString.data(), "hello", clusterValue.octetString.size()) == 0);
+                EXPECT_TRUE(strncmp((char *) clusterValue.octetString.data(), "hello", clusterValue.octetString.size()) == 0);
                 break;
 
             case AttributeInstruction::kAttributeC:
                 ChipLogProgress(DataManagement, "\t\t -- Validating C (Cluster Obj)");
-                NL_TEST_ASSERT(gSuite, clusterValue.structAttr.a == instruction.mInstructionId);
-                NL_TEST_ASSERT(gSuite, clusterValue.structAttr.b == true);
+                EXPECT_TRUE(clusterValue.structAttr.a == instruction.mInstructionId);
+                EXPECT_TRUE(clusterValue.structAttr.b == true);
                 break;
 
             case AttributeInstruction::kAttributeD:
@@ -439,22 +436,22 @@ private:
                 auto listIter = clusterValue.listStructOctetString.begin();
                 while (listIter.Next())
                 {
-                    NL_TEST_ASSERT(gSuite, listIter.GetValue().member1 == instruction.mInstructionId);
+                    EXPECT_TRUE(listIter.GetValue().member1 == instruction.mInstructionId);
                 }
 
-                NL_TEST_ASSERT(gSuite, listIter.GetStatus() == CHIP_NO_ERROR);
+                EXPECT_TRUE(listIter.GetStatus() == CHIP_NO_ERROR);
                 break;
             }
         }
         else
         {
-            NL_TEST_ASSERT(gSuite, statusList.size() == 1);
+            EXPECT_TRUE(statusList.size() == 1);
 
             auto status = statusList.front();
-            NL_TEST_ASSERT(gSuite, status.mPath.mEndpointId == instruction.mEndpointId);
-            NL_TEST_ASSERT(gSuite, status.mPath.mClusterId == Clusters::UnitTesting::Id);
-            NL_TEST_ASSERT(gSuite, status.mPath.mAttributeId == instruction.GetAttributeId());
-            NL_TEST_ASSERT(gSuite, status.mStatus.mStatus == Protocols::InteractionModel::Status::Failure);
+            EXPECT_TRUE(status.mPath.mEndpointId == instruction.mEndpointId);
+            EXPECT_TRUE(status.mPath.mClusterId == Clusters::UnitTesting::Id);
+            EXPECT_TRUE(status.mPath.mAttributeId == instruction.GetAttributeId());
+            EXPECT_TRUE(status.mStatus.mStatus == Protocols::InteractionModel::Status::Failure);
         }
     }
 
@@ -464,7 +461,7 @@ private:
 
         // Ensure that the provided path is one that we're expecting to find
         auto iter = mExpectedAttributes.find(path);
-        NL_TEST_ASSERT(gSuite, iter != mExpectedAttributes.end());
+        EXPECT_TRUE(iter != mExpectedAttributes.end());
 
         // Once retrieved, let's erase it from the expected set so that we can catch duplicates coming back
         // as well as validating that we've seen all attributes at the end.
@@ -475,7 +472,6 @@ private:
             if (instruction.mEndpointId == path.mEndpointId && instruction.GetAttributeId() == path.mAttributeId &&
                 path.mClusterId == Clusters::UnitTesting::Id)
             {
-
                 //
                 // Validate both decoding into attribute objects as well as
                 // cluster objects.
@@ -489,22 +485,22 @@ private:
     void OnClusterChanged(ClusterStateCache * cache, EndpointId endpointId, ClusterId clusterId) override
     {
         auto iter = mExpectedClusters.find(std::make_tuple(endpointId, clusterId));
-        NL_TEST_ASSERT(gSuite, iter != mExpectedClusters.end());
+        EXPECT_TRUE(iter != mExpectedClusters.end());
         mExpectedClusters.erase(iter);
     }
 
     void OnEndpointAdded(ClusterStateCache * cache, EndpointId endpointId) override
     {
         auto iter = mExpectedEndpoints.find(endpointId);
-        NL_TEST_ASSERT(gSuite, iter != mExpectedEndpoints.end());
+        EXPECT_TRUE(iter != mExpectedEndpoints.end());
         mExpectedEndpoints.erase(iter);
     }
 
     void OnReportEnd() override
     {
-        NL_TEST_ASSERT(gSuite, mExpectedAttributes.size() == 0);
-        NL_TEST_ASSERT(gSuite, mExpectedClusters.size() == 0);
-        NL_TEST_ASSERT(gSuite, mExpectedEndpoints.size() == 0);
+        EXPECT_TRUE(mExpectedAttributes.size() == 0);
+        EXPECT_TRUE(mExpectedClusters.size() == 0);
+        EXPECT_TRUE(mExpectedEndpoints.size() == 0);
     }
 
     //
@@ -557,13 +553,13 @@ void RunAndValidateSequence(AttributeInstructionListType list)
         writer.Init(buf);
         DataVersionFilterIBs::Builder builder;
         CHIP_ERROR err = builder.Init(&writer);
-        NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         bool encodedDataVersionList = false;
         err = cache.GetBufferedCallback().OnUpdateDataVersionFilterList(builder, pathSpan, encodedDataVersionList);
 
         // We had nothing to encode so far.
-        NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(gSuite, !encodedDataVersionList);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(!encodedDataVersionList);
     }
 
     DataSeriesGenerator generator(&cache.GetBufferedCallback(), list);
@@ -578,7 +574,7 @@ void RunAndValidateSequence(AttributeInstructionListType list)
         Platform::ScopedMemoryBuffer<uint8_t> buf;
         if (!buf.Calloc(bufferSize))
         {
-            NL_TEST_ASSERT(gSuite, false);
+            EXPECT_TRUE(false);
             break;
         }
 
@@ -587,7 +583,7 @@ void RunAndValidateSequence(AttributeInstructionListType list)
 
         DataVersionFilterIBs::Builder builder;
         CHIP_ERROR err = builder.Init(&writer);
-        NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR || err == CHIP_ERROR_BUFFER_TOO_SMALL);
+        EXPECT_TRUE(err == CHIP_NO_ERROR || err == CHIP_ERROR_BUFFER_TOO_SMALL);
         if (err == CHIP_NO_ERROR)
         {
             // We had enough space to start the list.  Now try encoding the data
@@ -596,8 +592,8 @@ void RunAndValidateSequence(AttributeInstructionListType list)
             err = cache.GetBufferedCallback().OnUpdateDataVersionFilterList(builder, pathSpan, encodedDataVersionList);
 
             // We should be rolling back properly if we run out of space.
-            NL_TEST_ASSERT(gSuite, err == CHIP_NO_ERROR);
-            NL_TEST_ASSERT(gSuite, builder.GetError() == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
+            EXPECT_TRUE(builder.GetError() == CHIP_NO_ERROR);
 
             if (writer.GetRemainingFreeLength() > 40)
             {
@@ -625,7 +621,18 @@ void RunAndValidateSequence(AttributeInstructionListType list)
  * E1:A1 --- Endpoint 1, Attribute A, Version 1
  *
  */
-void TestCache(nlTestSuite * apSuite, void * apContext)
+
+class TestClusterStateCache : public ::testing::Test
+{
+public:
+    static TestContext ctx;
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+};
+
+TestContext TestClusterStateCache::ctx;
+
+TEST_F(TestClusterStateCache, TestCache)
 {
     ChipLogProgress(DataManagement, "Validating various sequences of attribute data IBs...");
 
@@ -684,28 +691,5 @@ void TestCache(nlTestSuite * apSuite, void * apContext)
                              AttributeInstruction(AttributeInstruction::kAttributeB, 0, AttributeInstruction::kData) });
 }
 
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestCache", TestCache),
-    NL_TEST_SENTINEL()
-};
-
-nlTestSuite theSuite =
-{
-    "TestClusterStateCache",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-
-}
+} // namespace
 // clang-format on
-
-int TestClusterStateCache()
-{
-    gSuite = &theSuite;
-    return chip::ExecuteTestsWithContext<TestContext>(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestClusterStateCache)

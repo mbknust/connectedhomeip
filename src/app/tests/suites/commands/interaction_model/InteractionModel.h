@@ -240,7 +240,6 @@ protected:
         uint16_t repeat = mRepeatCount.ValueOr(1);
         while (repeat--)
         {
-
             chip::app::CommandPathParams commandPath = { endpointId, clusterId, commandId,
                                                          (chip::app::CommandPathFlags::kEndpointIdValid) };
             auto commandSender                       = std::make_unique<chip::app::CommandSender>(
@@ -388,7 +387,6 @@ protected:
         uint16_t repeat = mRepeatCount.ValueOr(1);
         while (repeat--)
         {
-
             mWriteClient = std::make_unique<chip::app::WriteClient>(device->GetExchangeManager(), &mChunkedWriteCallback,
                                                                     mTimedInteractionTimeoutMs, mSuppressResponse.ValueOr(false));
             VerifyOrReturnError(mWriteClient != nullptr, CHIP_ERROR_NO_MEMORY);

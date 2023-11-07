@@ -20,21 +20,22 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/clusters/power-source-server/power-source-server.h>
 #include <app/util/af.h>
+#include <gtest/gtest.h>
 #include <lib/core/ErrorStr.h>
 #include <lib/core/TLV.h>
 #include <lib/core/TLVDebug.h>
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
-#include <nlunit-test.h>
 #include <protocols/interaction_model/Constants.h>
 #include <type_traits>
 
 #include <vector>
 
+// TODO this has duplicate definitions in other files, that all should be moved to AppTestContext.cpp
 namespace {
 chip::EndpointId numEndpoints = 0;
 }
@@ -53,13 +54,19 @@ extern uint16_t emberAfGetClusterServerEndpointIndex(chip::EndpointId endpoint, 
 namespace chip {
 namespace app {
 
-class TestPowerSourceCluster
+class TestPowerSourceCluster : public ::testing::Test
 {
 public:
-    static void TestEndpointList(nlTestSuite * apSuite, void * apContext);
+    static void TestEndpointList(void * apContext);
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite()
+    {
+        chip::app::Clusters::PowerSourceServer::Instance().Shutdown();
+        chip::Platform::MemoryShutdown();
+    }
 };
 
-std::vector<EndpointId> ReadEndpointsThroughAttributeReader(nlTestSuite * apSuite, EndpointId endpoint)
+std::vector<EndpointId> ReadEndpointsThroughAttributeReader(EndpointId endpoint)
 {
     Clusters::PowerSourceAttrAccess & attrAccess = Clusters::TestOnlyGetPowerSourceAttrAccess();
     CHIP_ERROR err                               = CHIP_NO_ERROR;
@@ -85,7 +92,7 @@ std::vector<EndpointId> ReadEndpointsThroughAttributeReader(nlTestSuite * apSuit
 
     err = attrAccess.Read(readPath, aEncoder);
 
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Read out from the buffer. This comes back as a nested struct
     // AttributeReportIBs is a list of
@@ -114,13 +121,13 @@ std::vector<EndpointId> ReadEndpointsThroughAttributeReader(nlTestSuite * apSuit
     {
         attrDataReader.Next();
     }
-    NL_TEST_ASSERT(apSuite, IsContextTag(attrDataReader.GetTag()));
-    NL_TEST_ASSERT(apSuite, TagNumFromTag(attrDataReader.GetTag()) == 2);
+    EXPECT_TRUE(IsContextTag(attrDataReader.GetTag()));
+    EXPECT_TRUE(TagNumFromTag(attrDataReader.GetTag()) == 2);
 
     // OK, we should be in the right spot now, let's decode the list.
     Clusters::PowerSource::Attributes::EndpointList::TypeInfo::DecodableType list;
     err = list.Decode(attrDataReader);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     std::vector<EndpointId> ret;
     auto iter = list.begin();
     while (iter.Next())
@@ -130,7 +137,7 @@ std::vector<EndpointId> ReadEndpointsThroughAttributeReader(nlTestSuite * apSuit
     return ret;
 }
 
-void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestPowerSourceCluster, TestEndpointList)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -139,8 +146,8 @@ void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apCo
     // test that when we read everything we get an empty list as nothing has been set up yet
     for (EndpointId i = 0; i < 11; ++i)
     {
-        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(apSuite, i);
-        NL_TEST_ASSERT(apSuite, vec.size() == 0);
+        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(i);
+        EXPECT_TRUE(vec.size() == 0);
     }
 
     if (powerSourceServer.GetNumSupportedEndpointLists() < 2 ||
@@ -164,37 +171,37 @@ void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apCo
 
     // Endpoint 0 - list of 5
     err = powerSourceServer.SetEndpointList(0, Span<EndpointId>(list0));
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     const Span<EndpointId> * readBack = powerSourceServer.GetEndpointList(0);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-    NL_TEST_ASSERT(apSuite, readBack->size() == 5);
+    ASSERT_TRUE(readBack != nullptr);
+    EXPECT_TRUE(readBack->size() == 5);
     for (size_t i = 0; i < readBack->size(); ++i)
     {
-        NL_TEST_ASSERT(apSuite, readBack->data()[i] == list0[i]);
+        EXPECT_TRUE(readBack->data()[i] == list0[i]);
     }
 
     // Endpoint 1 - list of 10
     err = powerSourceServer.SetEndpointList(1, Span<EndpointId>(list1));
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     readBack = powerSourceServer.GetEndpointList(1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-    NL_TEST_ASSERT(apSuite, readBack->size() == 10);
+    ASSERT_TRUE(readBack != nullptr);
+    EXPECT_TRUE(readBack->size() == 10);
     for (size_t i = 0; i < readBack->size(); ++i)
     {
-        NL_TEST_ASSERT(apSuite, readBack->data()[i] == list1[i]);
+        EXPECT_TRUE(readBack->data()[i] == list1[i]);
     }
 
     // Remaining endpoints - list of 1
     for (EndpointId ep = 2; ep < numEndpoints; ++ep)
     {
         err = powerSourceServer.SetEndpointList(ep, Span<EndpointId>(listRest));
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         readBack = powerSourceServer.GetEndpointList(ep);
-        NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-        NL_TEST_ASSERT(apSuite, readBack->size() == 1);
+        ASSERT_TRUE(readBack != nullptr);
+        EXPECT_TRUE(readBack->size() == 1);
         if (readBack->size() == 1)
         {
-            NL_TEST_ASSERT(apSuite, readBack->data()[0] == listRest[0]);
+            EXPECT_TRUE(readBack->data()[0] == listRest[0]);
         }
     }
 
@@ -203,38 +210,38 @@ void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apCo
     // *****************
     // pick a random endpoint number for the power cluster - it doesn't matter, we don't have space anyway.
     err = powerSourceServer.SetEndpointList(55, Span<EndpointId>(listRest));
-    NL_TEST_ASSERT(apSuite, err == CHIP_ERROR_NO_MEMORY);
+    EXPECT_TRUE(err == CHIP_ERROR_NO_MEMORY);
 
     // *****************
     // Recheck getting and reading after OOM
     // *****************
     // EP0
     readBack = powerSourceServer.GetEndpointList(0);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-    NL_TEST_ASSERT(apSuite, readBack->size() == 5);
+    ASSERT_TRUE(readBack != nullptr);
+    EXPECT_TRUE(readBack->size() == 5);
     for (size_t i = 0; i < readBack->size(); ++i)
     {
-        NL_TEST_ASSERT(apSuite, readBack->data()[i] == list0[i]);
+        EXPECT_TRUE(readBack->data()[i] == list0[i]);
     }
 
     // EP1
     readBack = powerSourceServer.GetEndpointList(1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-    NL_TEST_ASSERT(apSuite, readBack->size() == 10);
+    ASSERT_TRUE(readBack != nullptr);
+    EXPECT_TRUE(readBack->size() == 10);
     for (size_t i = 0; i < readBack->size(); ++i)
     {
-        NL_TEST_ASSERT(apSuite, readBack->data()[i] == list1[i]);
+        EXPECT_TRUE(readBack->data()[i] == list1[i]);
     }
 
     // Remaining endpoints
     for (EndpointId ep = 2; ep < numEndpoints; ++ep)
     {
         readBack = powerSourceServer.GetEndpointList(ep);
-        NL_TEST_EXIT_ON_FAILED_ASSERT(apSuite, readBack != nullptr);
-        NL_TEST_ASSERT(apSuite, readBack->size() == 1);
+        ASSERT_TRUE(readBack != nullptr);
+        EXPECT_TRUE(readBack->size() == 1);
         if (readBack->size() == 1)
         {
-            NL_TEST_ASSERT(apSuite, readBack->data()[0] == listRest[0]);
+            EXPECT_TRUE(readBack->data()[0] == listRest[0]);
         }
     }
 
@@ -243,36 +250,36 @@ void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apCo
     // *****************
     // Overwrite a list
     err = powerSourceServer.SetEndpointList(1, Span<EndpointId>(listRest));
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     readBack = powerSourceServer.GetEndpointList(1);
-    NL_TEST_ASSERT(apSuite, readBack->size() == 1);
+    EXPECT_TRUE(readBack->size() == 1);
     if (readBack->size() == 1)
     {
-        NL_TEST_ASSERT(apSuite, readBack->data()[0] == listRest[0]);
+        EXPECT_TRUE(readBack->data()[0] == listRest[0]);
     }
 
     // Ensure only the overwritten list was changed, using read interface
     for (EndpointId ep = 0; ep < numEndpoints + 1; ++ep)
     {
-        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(apSuite, ep);
+        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(ep);
         if (ep == 0)
         {
-            NL_TEST_ASSERT(apSuite, vec.size() == 5);
+            EXPECT_TRUE(vec.size() == 5);
             for (size_t j = 0; j < vec.size(); ++j)
             {
-                NL_TEST_ASSERT(apSuite, vec[j] == list0[j]);
+                EXPECT_TRUE(vec[j] == list0[j]);
             }
         }
         else if (ep == numEndpoints)
         {
-            NL_TEST_ASSERT(apSuite, vec.size() == 0);
+            EXPECT_TRUE(vec.size() == 0);
         }
         else
         {
-            NL_TEST_ASSERT(apSuite, vec.size() == 1);
+            EXPECT_TRUE(vec.size() == 1);
             if (vec.size() == 1)
             {
-                NL_TEST_ASSERT(apSuite, vec[0] == listRest[0]);
+                EXPECT_TRUE(vec[0] == listRest[0]);
             }
         }
     }
@@ -283,73 +290,18 @@ void TestPowerSourceCluster::TestEndpointList(nlTestSuite * apSuite, void * apCo
     for (EndpointId ep = 0; ep < numEndpoints; ++ep)
     {
         err = powerSourceServer.SetEndpointList(ep, Span<EndpointId>());
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         readBack = powerSourceServer.GetEndpointList(ep);
-        NL_TEST_ASSERT(apSuite, readBack == nullptr);
+        EXPECT_TRUE(readBack == nullptr);
     }
 
     // Check through the read interface
     for (EndpointId ep = 0; ep < numEndpoints + 1; ++ep)
     {
-        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(apSuite, ep);
-        NL_TEST_ASSERT(apSuite, vec.size() == 0);
+        std::vector<EndpointId> vec = ReadEndpointsThroughAttributeReader(ep);
+        EXPECT_TRUE(vec.size() == 0);
     }
 }
 
 } // namespace app
 } // namespace chip
-
-namespace {
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestEndpointList", chip::app::TestPowerSourceCluster::TestEndpointList),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-/**
- *  Set up the test suite.
- */
-int TestPowerSourceClusterContext_Setup(void * inContext)
-{
-    CHIP_ERROR error = chip::Platform::MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return FAILURE;
-    return SUCCESS;
-}
-
-/**
- *  Tear down the test suite.
- */
-int TestPowerSourceClusterContext_Teardown(void * inContext)
-{
-    chip::app::Clusters::PowerSourceServer::Instance().Shutdown();
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
-}
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestPowerSourceCluster",
-    &sTests[0],
-    TestPowerSourceClusterContext_Setup,
-    TestPowerSourceClusterContext_Teardown
-};
-// clang-format on
-
-} // namespace
-
-int TestPowerSource()
-{
-    nlTestRunner(&sSuite, nullptr);
-    return nlTestRunnerStats(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestPowerSource)

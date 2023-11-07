@@ -21,9 +21,8 @@
 #include <lib/core/CHIPError.h>
 #include <lib/core/ErrorStr.h>
 #include <lib/support/CHIPMem.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -37,61 +36,75 @@ using namespace chip::Protocols::InteractionModel;
     {                                                                                                                              \
         StatusIB newStatus;                                                                                                        \
         newStatus.InitFromChipError(err);                                                                                          \
-        NL_TEST_ASSERT(aSuite, newStatus.mStatus == status.mStatus);                                                               \
-        NL_TEST_ASSERT(aSuite, newStatus.mClusterStatus == status.mClusterStatus);                                                 \
+        EXPECT_TRUE(newStatus.mStatus == status.mStatus);                                                                          \
+        EXPECT_TRUE(newStatus.mClusterStatus == status.mClusterStatus);                                                            \
     } while (0);
 
-void TestStatusIBToFromChipError(nlTestSuite * aSuite, void * aContext)
+class TestStatusIB : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite()
+    {
+        VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR);
+
+        // Hand-register the error formatter.  Normally it's registered by
+        // InteractionModelEngine::Init, but we don't want to mess with that here.
+        StatusIB::RegisterErrorFormatter();
+    }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
+TEST_F(TestStatusIB, TestStatusIBToFromChipError)
 {
     StatusIB status;
 
     status.mStatus = Status::Success;
     CHIP_ERROR err = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     VERIFY_ROUNDTRIP(err, status);
 
     status.mStatus = Status::Failure;
     err            = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
     VERIFY_ROUNDTRIP(err, status);
 
     status.mStatus = Status::InvalidAction;
     err            = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
     VERIFY_ROUNDTRIP(err, status);
 
     status.mClusterStatus = MakeOptional(static_cast<ClusterStatus>(5));
 
     status.mStatus = Status::Success;
     err            = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     status.mStatus = Status::Failure;
     err            = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
     VERIFY_ROUNDTRIP(err, status);
 
     status.mStatus = Status::InvalidAction;
     err            = status.ToChipError();
-    NL_TEST_ASSERT(aSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
     {
         StatusIB newStatus;
         newStatus.InitFromChipError(err);
-        NL_TEST_ASSERT(aSuite, newStatus.mStatus == Status::Failure);
-        NL_TEST_ASSERT(aSuite, newStatus.mClusterStatus == status.mClusterStatus);
+        EXPECT_TRUE(newStatus.mStatus == Status::Failure);
+        EXPECT_TRUE(newStatus.mClusterStatus == status.mClusterStatus);
     }
 
     err = CHIP_ERROR_NO_MEMORY;
     {
         StatusIB newStatus;
         newStatus.InitFromChipError(err);
-        NL_TEST_ASSERT(aSuite, newStatus.mStatus == Status::Failure);
-        NL_TEST_ASSERT(aSuite, !newStatus.mClusterStatus.HasValue());
+        EXPECT_TRUE(newStatus.mStatus == Status::Failure);
+        EXPECT_TRUE(!newStatus.mClusterStatus.HasValue());
     }
 }
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR
-void TestStatusIBErrorToString(nlTestSuite * aSuite, void * aContext)
+TEST_F(TestStatusIB, TestStatusIBErrorToString)
 {
     StatusIB status;
     status.mStatus   = Status::InvalidAction;
@@ -99,69 +112,16 @@ void TestStatusIBErrorToString(nlTestSuite * aSuite, void * aContext)
     const char * str = ErrorStr(err);
 
 #if CHIP_CONFIG_IM_STATUS_CODE_VERBOSE_FORMAT
-    NL_TEST_ASSERT(aSuite, strcmp(str, "IM Error 0x00000580: General error: 0x80 (INVALID_ACTION)") == 0);
+    EXPECT_TRUE(strcmp(str, "IM Error 0x00000580: General error: 0x80 (INVALID_ACTION)") == 0);
 #else  // CHIP_CONFIG_IM_STATUS_CODE_VERBOSE_FORMAT
-    NL_TEST_ASSERT(aSuite, strcmp(str, "IM Error 0x00000580: General error: 0x80") == 0);
+    EXPECT_TRUE(strcmp(str, "IM Error 0x00000580: General error: 0x80") == 0);
 #endif // CHIP_CONFIG_IM_STATUS_CODE_VERBOSE_FORMAT
 
     status.mStatus        = Status::Failure;
     status.mClusterStatus = MakeOptional(static_cast<ClusterStatus>(5));
     err                   = status.ToChipError();
     str                   = ErrorStr(err);
-    NL_TEST_ASSERT(aSuite, strcmp(str, "IM Error 0x00000605: Cluster-specific error: 0x05") == 0);
+    EXPECT_TRUE(strcmp(str, "IM Error 0x00000605: Cluster-specific error: 0x05") == 0);
 }
 #endif // !CHIP_CONFIG_SHORT_ERROR_STR
-
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("StatusIBToFromChipError", TestStatusIBToFromChipError),
-#if !CHIP_CONFIG_SHORT_ERROR_STR
-    NL_TEST_DEF("StatusIBErrorToString", TestStatusIBErrorToString),
-#endif // !CHIP_CONFIG_SHORT_ERROR_STR
-    NL_TEST_SENTINEL()
-};
-// clang-format on
 } // namespace
-
-/**
- *  Set up the test suite.
- */
-static int TestSetup(void * inContext)
-{
-    CHIP_ERROR error = chip::Platform::MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return FAILURE;
-    // Hand-register the error formatter.  Normally it's registered by
-    // InteractionModelEngine::Init, but we don't want to mess with that here.
-    StatusIB::RegisterErrorFormatter();
-    return SUCCESS;
-}
-
-/**
- *  Tear down the test suite.
- */
-static int TestTeardown(void * inContext)
-{
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
-}
-
-int TestStatusIB()
-{
-    // clang-format off
-    nlTestSuite theSuite =
-	{
-        "StatusIB",
-        &sTests[0],
-        TestSetup,
-        TestTeardown,
-    };
-    // clang-format on
-
-    nlTestRunner(&theSuite, nullptr);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestStatusIB)

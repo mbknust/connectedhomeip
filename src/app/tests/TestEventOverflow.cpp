@@ -36,14 +36,14 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/Constants.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/TLVPacketBufferBackingStore.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -93,6 +93,16 @@ private:
     chip::MonotonicallyIncreasingCounter<chip::EventNumber> mEventCounter;
 };
 
+class TestEventOverflow : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+    static TestContext ctx;
+};
+
+TestContext TestEventOverflow::ctx;
+
 class TestEventGenerator : public chip::app::EventLoggingDelegate
 {
 public:
@@ -107,7 +117,7 @@ public:
     }
 };
 
-static void CheckLogEventOverFlow(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestEventOverflow, CheckLogEventOverFlow)
 {
     CHIP_ERROR err           = CHIP_NO_ERROR;
     chip::EventNumber oldEid = 0;
@@ -161,32 +171,13 @@ static void CheckLogEventOverFlow(nlTestSuite * apSuite, void * apContext)
         alternate = i % 10;
 
         err = logMgmt.LogEvent(&testEventGenerator, options, eid);
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         if (eid > 0)
         {
-            NL_TEST_ASSERT(apSuite, eid == oldEid + 1);
+            EXPECT_TRUE(eid == oldEid + 1);
             oldEid = eid;
         }
     }
 }
 
-const nlTest sTests[] = { NL_TEST_DEF("CheckLogEventOverFlow", CheckLogEventOverFlow), NL_TEST_SENTINEL() };
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestEventOverflow",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-int TestEventOverflow()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestEventOverflow)

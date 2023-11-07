@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <app/util/mock/Functions.h>
 #include <messaging/tests/MessagingContext.h>
 
 namespace chip {
@@ -36,5 +37,16 @@ public:
     void Shutdown() override;
 };
 
+namespace Constants {
+namespace TestReadInteraction {
+constexpr chip::ClusterId kTestClusterId   = 6;
+constexpr chip::EndpointId kTestEndpointId = 1;
+constexpr uint8_t kTestFieldValue1         = 1;
+} // namespace TestReadInteraction
+
+namespace TestAclAttribute {
+constexpr chip::ClusterId kTestDeniedClusterId1 = 1000;
+} // namespace TestAclAttribute
+} // namespace Constants
 } // namespace Test
 } // namespace chip

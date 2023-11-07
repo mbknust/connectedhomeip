@@ -26,10 +26,10 @@
 #include <lib/core/TLVDebug.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/CHIPLogging.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using namespace chip;
 using namespace chip::Test;
@@ -39,7 +39,12 @@ namespace {
 
 using P = app::ConcreteAttributePath;
 
-void TestAllWildcard(nlTestSuite * apSuite, void * apContext)
+class TestAttributePathExpandIterator : public ::testing::Test
+{
+public:
+};
+
+TEST_F(TestAttributePathExpandIterator, TestAllWildcard)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
 
@@ -136,17 +141,17 @@ void TestAllWildcard(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestWildcardEndpoint(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestWildcardEndpoint)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
-    clusInfo.mValue.mClusterId   = Test::MockClusterId(3);
-    clusInfo.mValue.mAttributeId = Test::MockAttributeId(3);
+    clusInfo.mValue.mClusterId   = chip::Test::MockClusterId(3);
+    clusInfo.mValue.mAttributeId = chip::Test::MockAttributeId(3);
 
     app::ConcreteAttributePath path;
     P paths[] = {
@@ -159,16 +164,16 @@ void TestWildcardEndpoint(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestWildcardCluster(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestWildcardCluster)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
-    clusInfo.mValue.mEndpointId  = Test::kMockEndpoint3;
+    clusInfo.mValue.mEndpointId  = chip::Test::kMockEndpoint3;
     clusInfo.mValue.mAttributeId = app::Clusters::Globals::Attributes::ClusterRevision::Id;
 
     app::ConcreteAttributePath path;
@@ -185,16 +190,16 @@ void TestWildcardCluster(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestWildcardClusterGlobalAttributeNotInMetadata(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestWildcardClusterGlobalAttributeNotInMetadata)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
-    clusInfo.mValue.mEndpointId  = Test::kMockEndpoint3;
+    clusInfo.mValue.mEndpointId  = chip::Test::kMockEndpoint3;
     clusInfo.mValue.mAttributeId = app::Clusters::Globals::Attributes::AttributeList::Id;
 
     app::ConcreteAttributePath path;
@@ -211,17 +216,17 @@ void TestWildcardClusterGlobalAttributeNotInMetadata(nlTestSuite * apSuite, void
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestWildcardAttribute(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestWildcardAttribute)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
-    clusInfo.mValue.mEndpointId = Test::kMockEndpoint2;
-    clusInfo.mValue.mClusterId  = Test::MockClusterId(3);
+    clusInfo.mValue.mEndpointId = chip::Test::kMockEndpoint2;
+    clusInfo.mValue.mClusterId  = chip::Test::MockClusterId(3);
 
     app::ConcreteAttributePath path;
     P paths[] = {
@@ -244,18 +249,18 @@ void TestWildcardAttribute(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestNoWildcard(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestNoWildcard)
 {
     app::ObjectList<app::AttributePathParams> clusInfo;
-    clusInfo.mValue.mEndpointId  = Test::kMockEndpoint2;
-    clusInfo.mValue.mClusterId   = Test::MockClusterId(3);
-    clusInfo.mValue.mAttributeId = Test::MockAttributeId(3);
+    clusInfo.mValue.mEndpointId  = chip::Test::kMockEndpoint2;
+    clusInfo.mValue.mClusterId   = chip::Test::MockClusterId(3);
+    clusInfo.mValue.mAttributeId = chip::Test::MockAttributeId(3);
 
     app::ConcreteAttributePath path;
     P paths[] = {
@@ -268,33 +273,32 @@ void TestNoWildcard(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
 
-void TestMultipleClusInfo(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAttributePathExpandIterator, TestMultipleClusInfo)
 {
-
     app::ObjectList<app::AttributePathParams> clusInfo1;
 
     app::ObjectList<app::AttributePathParams> clusInfo2;
-    clusInfo2.mValue.mClusterId   = Test::MockClusterId(3);
-    clusInfo2.mValue.mAttributeId = Test::MockAttributeId(3);
+    clusInfo2.mValue.mClusterId   = chip::Test::MockClusterId(3);
+    clusInfo2.mValue.mAttributeId = chip::Test::MockAttributeId(3);
 
     app::ObjectList<app::AttributePathParams> clusInfo3;
-    clusInfo3.mValue.mEndpointId  = Test::kMockEndpoint3;
+    clusInfo3.mValue.mEndpointId  = chip::Test::kMockEndpoint3;
     clusInfo3.mValue.mAttributeId = app::Clusters::Globals::Attributes::ClusterRevision::Id;
 
     app::ObjectList<app::AttributePathParams> clusInfo4;
-    clusInfo4.mValue.mEndpointId = Test::kMockEndpoint2;
-    clusInfo4.mValue.mClusterId  = Test::MockClusterId(3);
+    clusInfo4.mValue.mEndpointId = chip::Test::kMockEndpoint2;
+    clusInfo4.mValue.mClusterId  = chip::Test::MockClusterId(3);
 
     app::ObjectList<app::AttributePathParams> clusInfo5;
-    clusInfo5.mValue.mEndpointId  = Test::kMockEndpoint2;
-    clusInfo5.mValue.mClusterId   = Test::MockClusterId(3);
-    clusInfo5.mValue.mAttributeId = Test::MockAttributeId(3);
+    clusInfo5.mValue.mEndpointId  = chip::Test::kMockEndpoint2;
+    clusInfo5.mValue.mClusterId   = chip::Test::MockClusterId(3);
+    clusInfo5.mValue.mAttributeId = chip::Test::MockAttributeId(3);
 
     clusInfo1.mpNext = &clusInfo2;
     clusInfo2.mpNext = &clusInfo3;
@@ -411,60 +415,10 @@ void TestMultipleClusInfo(nlTestSuite * apSuite, void * apContext)
     {
         ChipLogDetail(AppServer, "Visited Attribute: 0x%04X / " ChipLogFormatMEI " / " ChipLogFormatMEI, path.mEndpointId,
                       ChipLogValueMEI(path.mClusterId), ChipLogValueMEI(path.mAttributeId));
-        NL_TEST_ASSERT(apSuite, index < ArraySize(paths) && paths[index] == path);
+        EXPECT_TRUE(index < ArraySize(paths) && paths[index] == path);
         index++;
     }
-    NL_TEST_ASSERT(apSuite, index == ArraySize(paths));
+    EXPECT_TRUE(index == ArraySize(paths));
 }
-
-static int TestSetup(void * inContext)
-{
-    return SUCCESS;
-}
-
-/**
- *  Tear down the test suite.
- */
-static int TestTeardown(void * inContext)
-{
-    return SUCCESS;
-}
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-const nlTest sTests[] =
-{
-        NL_TEST_DEF("TestAllWildcard", TestAllWildcard),
-        NL_TEST_DEF("TestWildcardEndpoint", TestWildcardEndpoint),
-        NL_TEST_DEF("TestWildcardCluster", TestWildcardCluster),
-        NL_TEST_DEF("TestWildcardClusterGlobalAttributeNotInMetadata",
-                    TestWildcardClusterGlobalAttributeNotInMetadata),
-        NL_TEST_DEF("TestWildcardAttribute", TestWildcardAttribute),
-        NL_TEST_DEF("TestNoWildcard", TestNoWildcard),
-        NL_TEST_DEF("TestMultipleClusInfo", TestMultipleClusInfo),
-        NL_TEST_SENTINEL()
-};
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestAttributePathExpandIterator",
-    &sTests[0],
-    TestSetup,
-    TestTeardown,
-};
-// clang-format on
 
 } // namespace
-
-int TestAttributePathExpandIterator()
-{
-    nlTestRunner(&sSuite, nullptr);
-    return (nlTestRunnerStats(&sSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestAttributePathExpandIterator)

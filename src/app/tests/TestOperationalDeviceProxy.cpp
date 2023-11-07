@@ -17,11 +17,11 @@
 
 #include <Credentials/GroupDataProviderImpl.h>
 #include <app/OperationalDeviceProxy.h>
+#include <gtest/gtest.h>
 #include <inet/IPAddress.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
+
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <system/SystemLayerImpl.h>
 #include <transport/SessionManager.h>
@@ -39,7 +39,7 @@ namespace {
 
 using TestTransportMgr = TransportMgr<Transport::UDP>;
 
-void TestOperationalDeviceProxy_EstablishSessionDirectly(nlTestSuite * inSuite, void * inContext)
+TEST(OperationalDeviceProxy, TestOperationalDeviceProxy_EstablishSessionDirectly)
 {
     // TODO: This test appears not to be workable since it does not init the fabric table!!!
     Platform::MemoryInit();
@@ -83,7 +83,7 @@ void TestOperationalDeviceProxy_EstablishSessionDirectly(nlTestSuite * inSuite, 
     PeerAddress addr = PeerAddress::UDP(mockAddr, CHIP_PORT);
     device.UpdateAddress(addr);
 
-    NL_TEST_ASSERT(inSuite, device.Connect(nullptr, nullptr) == CHIP_NO_ERROR);
+    EXPECT_TRUE(device.Connect(nullptr, nullptr) == CHIP_NO_ERROR);
 
     device.Clear();
     messageCounterManager.Shutdown();
@@ -96,23 +96,6 @@ void TestOperationalDeviceProxy_EstablishSessionDirectly(nlTestSuite * inSuite, 
     Platform::MemoryShutdown();
 }
 
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestOperationalDeviceProxy_EstablishSessionDirectly", TestOperationalDeviceProxy_EstablishSessionDirectly),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
 } // namespace
-
-int TestOperationalDeviceProxy()
-{
-    nlTestSuite theSuite = { "OperationalDeviceProxy", &sTests[0], NULL, NULL };
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestOperationalDeviceProxy)
 
 #endif // INET_CONFIG_ENABLE_IPV4

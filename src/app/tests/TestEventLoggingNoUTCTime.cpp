@@ -37,14 +37,14 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/Constants.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/TLVPacketBufferBackingStore.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -128,6 +128,16 @@ private:
     chip::Optional<MockClock> mClock;
 };
 
+class TestEventLoggingNoUTCTime : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+    static TestContext ctx;
+};
+
+TestContext TestEventLoggingNoUTCTime::ctx;
+
 void ENFORCE_FORMAT(1, 2) SimpleDumpWriter(const char * aFormat, ...)
 {
     va_list args;
@@ -147,34 +157,33 @@ void PrintEventLog()
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
 
-static void CheckLogState(nlTestSuite * apSuite, chip::app::EventManagement & aLogMgmt, size_t expectedMinNumEvents,
-                          size_t expectedMaxNumEvents, chip::app::PriorityLevel aPriority)
+static void CheckLogState(chip::app::EventManagement & aLogMgmt, size_t expectedMinNumEvents, size_t expectedMaxNumEvents,
+                          chip::app::PriorityLevel aPriority)
 {
     CHIP_ERROR err;
     chip::TLV::TLVReader reader;
     size_t elementCount;
     chip::app::CircularEventBufferWrapper bufWrapper;
     err = aLogMgmt.GetEventReader(reader, aPriority, &bufWrapper);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     err = chip::TLV::Utilities::Count(reader, elementCount, false);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(apSuite, elementCount >= expectedMinNumEvents);
-    NL_TEST_ASSERT(apSuite, elementCount <= expectedMaxNumEvents);
+    EXPECT_TRUE(elementCount >= expectedMinNumEvents);
+    EXPECT_TRUE(elementCount <= expectedMaxNumEvents);
     printf("elementCount vs [expectedMinNumEvents, expectedMaxNumEvents] : %u vs [%u, %u] \n",
            static_cast<unsigned int>(elementCount), static_cast<unsigned int>(expectedMinNumEvents),
            static_cast<unsigned int>(expectedMaxNumEvents));
 }
 
-static void CheckLogState(nlTestSuite * apSuite, chip::app::EventManagement & aLogMgmt, size_t expectedNumEvents,
-                          chip::app::PriorityLevel aPriority)
+static void CheckLogState(chip::app::EventManagement & aLogMgmt, size_t expectedNumEvents, chip::app::PriorityLevel aPriority)
 {
-    CheckLogState(apSuite, aLogMgmt, expectedNumEvents, expectedNumEvents, aPriority);
+    CheckLogState(aLogMgmt, expectedNumEvents, expectedNumEvents, aPriority);
 }
 
-static void CheckLogReadOut(nlTestSuite * apSuite, chip::app::EventManagement & alogMgmt, chip::EventNumber startingEventNumber,
-                            size_t expectedNumEvents, chip::app::ObjectList<chip::app::EventPathParams> * clusterInfo)
+static void CheckLogReadOut(chip::app::EventManagement & alogMgmt, chip::EventNumber startingEventNumber, size_t expectedNumEvents,
+                            chip::app::ObjectList<chip::app::EventPathParams> * clusterInfo)
 {
     CHIP_ERROR err;
     chip::TLV::TLVReader reader;
@@ -187,16 +196,16 @@ static void CheckLogReadOut(nlTestSuite * apSuite, chip::app::EventManagement & 
     size_t totalNumElements;
     writer.Init(backingStore.Get(), 1024);
     err = alogMgmt.FetchEventsSince(writer, clusterInfo, startingEventNumber, eventCount, chip::Access::SubjectDescriptor{});
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV);
+    EXPECT_TRUE(err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV);
 
     reader.Init(backingStore.Get(), writer.GetLengthWritten());
 
     err = chip::TLV::Utilities::Count(reader, totalNumElements, false);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     printf("totalNumElements vs expectedNumEvents vs eventCount : %u vs %u vs %u \n", static_cast<unsigned int>(totalNumElements),
            static_cast<unsigned int>(expectedNumEvents), static_cast<unsigned int>(eventCount));
-    NL_TEST_ASSERT(apSuite, totalNumElements == expectedNumEvents && totalNumElements == eventCount);
+    EXPECT_TRUE(totalNumElements == expectedNumEvents && totalNumElements == eventCount);
     reader.Init(backingStore.Get(), writer.GetLengthWritten());
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
@@ -219,7 +228,7 @@ private:
     int32_t mStatus;
 };
 
-static void CheckLogEventWithEvictToNextBuffer(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestEventLoggingNoUTCTime, CheckLogEventWithEvictToNextBuffer)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::EventNumber eid1, eid2, eid3, eid4, eid5, eid6;
@@ -234,47 +243,47 @@ static void CheckLogEventWithEvictToNextBuffer(nlTestSuite * apSuite, void * apC
     chip::app::EventManagement & logMgmt = chip::app::EventManagement::GetInstance();
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options1, eid1);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 1, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 1, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 1, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 1, chip::app::PriorityLevel::Info);
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options1, eid2);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 2, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 2, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 2, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 2, chip::app::PriorityLevel::Info);
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options1, eid3);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 3, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 3, chip::app::PriorityLevel::Info);
     // Start to copy info event to next buffer since current debug buffer is full and info event is higher priority
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options2, eid4);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // At this point depending on timing and hence event sizes we might have
     // either 3 or 4 events in the Debug buffer.
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 4, chip::app::PriorityLevel::Info);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 4, chip::app::PriorityLevel::Info);
 
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options2, eid5);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 5, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 5, chip::app::PriorityLevel::Info);
 
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options2, eid6);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, chip::app::PriorityLevel::Info);
 
     PrintEventLog();
 
-    NL_TEST_ASSERT(apSuite, (eid1 + 1) == eid2);
-    NL_TEST_ASSERT(apSuite, (eid2 + 1) == eid3);
-    NL_TEST_ASSERT(apSuite, (eid3 + 1) == eid4);
-    NL_TEST_ASSERT(apSuite, (eid4 + 1) == eid5);
-    NL_TEST_ASSERT(apSuite, (eid5 + 1) == eid6);
+    EXPECT_TRUE((eid1 + 1) == eid2);
+    EXPECT_TRUE((eid2 + 1) == eid3);
+    EXPECT_TRUE((eid3 + 1) == eid4);
+    EXPECT_TRUE((eid4 + 1) == eid5);
+    EXPECT_TRUE((eid5 + 1) == eid6);
 
     chip::app::ObjectList<chip::app::EventPathParams> paths[2];
 
@@ -286,30 +295,30 @@ static void CheckLogEventWithEvictToNextBuffer(nlTestSuite * apSuite, void * apC
     paths[1].mValue.mEventId    = kLivenessChangeEvent;
 
     // interested paths are path list, expect to retrieve all events for each particular interested path
-    CheckLogReadOut(apSuite, logMgmt, 0, 3, &paths[0]);
-    CheckLogReadOut(apSuite, logMgmt, 1, 2, &paths[0]);
-    CheckLogReadOut(apSuite, logMgmt, 2, 1, &paths[0]);
-    CheckLogReadOut(apSuite, logMgmt, 3, 3, &paths[1]);
-    CheckLogReadOut(apSuite, logMgmt, 4, 2, &paths[1]);
-    CheckLogReadOut(apSuite, logMgmt, 5, 1, &paths[1]);
+    CheckLogReadOut(logMgmt, 0, 3, &paths[0]);
+    CheckLogReadOut(logMgmt, 1, 2, &paths[0]);
+    CheckLogReadOut(logMgmt, 2, 1, &paths[0]);
+    CheckLogReadOut(logMgmt, 3, 3, &paths[1]);
+    CheckLogReadOut(logMgmt, 4, 2, &paths[1]);
+    CheckLogReadOut(logMgmt, 5, 1, &paths[1]);
 
     paths[0].mpNext = &paths[1];
     // interested paths are path list, expect to retrieve all events for those interested paths
-    CheckLogReadOut(apSuite, logMgmt, 0, 6, paths);
+    CheckLogReadOut(logMgmt, 0, 6, paths);
 
     chip::app::ObjectList<chip::app::EventPathParams> pathsWithWildcard[2];
     paths[0].mValue.mEndpointId = kTestEndpointId1;
     paths[0].mValue.mClusterId  = kLivenessClusterId;
 
     // second path is wildcard path at default, expect to retrieve all events
-    CheckLogReadOut(apSuite, logMgmt, 0, 6, &pathsWithWildcard[1]);
+    CheckLogReadOut(logMgmt, 0, 6, &pathsWithWildcard[1]);
 
     paths[0].mpNext = &paths[1];
     // first path is not wildcard, second path is wildcard path at default, expect to retrieve all events
-    CheckLogReadOut(apSuite, logMgmt, 0, 6, pathsWithWildcard);
+    CheckLogReadOut(logMgmt, 0, 6, pathsWithWildcard);
 }
 
-static void CheckLogEventWithDiscardLowEvent(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestEventLoggingNoUTCTime, CheckLogEventWithDiscardLowEvent)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::EventNumber eid1, eid2, eid3, eid4, eid5, eid6;
@@ -319,69 +328,48 @@ static void CheckLogEventWithDiscardLowEvent(nlTestSuite * apSuite, void * apCon
     TestEventGenerator testEventGenerator;
 
     chip::app::EventManagement & logMgmt = chip::app::EventManagement::GetInstance();
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, chip::app::PriorityLevel::Info);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, chip::app::PriorityLevel::Info);
 
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid1);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // At this point depending on timing and hence event sizes we might have
     // either 3 or 4 events in the DEBUG buffer.  We never have more than 4
     // events in the Info buffer.
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 7, chip::app::PriorityLevel::Info);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 7, chip::app::PriorityLevel::Info);
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid2);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 8, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 8, chip::app::PriorityLevel::Info);
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid3);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 8, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 8, chip::app::PriorityLevel::Info);
     // Start to drop off debug event since debug event can only be saved in debug buffer
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid4);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 8, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 8, chip::app::PriorityLevel::Info);
 
     testEventGenerator.SetStatus(0);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid5);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 8, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 8, chip::app::PriorityLevel::Info);
 
     testEventGenerator.SetStatus(1);
     err = logMgmt.LogEvent(&testEventGenerator, options, eid6);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    CheckLogState(apSuite, logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
-    CheckLogState(apSuite, logMgmt, 6, 8, chip::app::PriorityLevel::Info);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    CheckLogState(logMgmt, 3, 4, chip::app::PriorityLevel::Debug);
+    CheckLogState(logMgmt, 6, 8, chip::app::PriorityLevel::Info);
 }
 /**
  *   Test Suite. It lists all the test functions.
  */
 
-const nlTest sTests[] = { NL_TEST_DEF("CheckLogEventWithEvictToNextBufferNoUTCTime", CheckLogEventWithEvictToNextBuffer),
-                          NL_TEST_DEF("CheckLogEventWithDiscardLowEventNoUTCTime", CheckLogEventWithDiscardLowEvent),
-                          NL_TEST_SENTINEL() };
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "EventLogging",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-int TestEventLoggingNoUTCTime()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestEventLoggingNoUTCTime)

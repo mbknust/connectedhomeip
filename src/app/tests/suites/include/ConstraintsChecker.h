@@ -503,7 +503,6 @@ protected:
     {
         if (current.Raw() == expected)
         {
-
             Exit(std::string(itemName) + " got unexpected value: " + std::to_string(current.Raw()));
             return false;
         }
@@ -516,7 +515,6 @@ protected:
     {
         if (current.Raw() == expected)
         {
-
             Exit(std::string(itemName) + " got unexpected value: " + std::to_string(current.Raw()));
             return false;
         }

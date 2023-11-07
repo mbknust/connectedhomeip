@@ -33,12 +33,12 @@
 #include <lib/core/TLVDebug.h>
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 
 #include <cinttypes>
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using TestContext = chip::Test::AppContext;
 
@@ -51,14 +51,18 @@ constexpr chip::AttributeId kTestFieldId2 = 2;
 
 namespace app {
 namespace reporting {
-class TestReportingEngine
+class TestReportingEngine : public ::testing::Test
 {
 public:
-    static void TestBuildAndSendSingleReportData(nlTestSuite * apSuite, void * apContext);
-    static void TestMergeOverlappedAttributePath(nlTestSuite * apSuite, void * apContext);
-    static void TestMergeAttributePathWhenDirtySetPoolExhausted(nlTestSuite * apSuite, void * apContext);
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+    static TestContext ctx;
 
-private:
+    static void TestBuildAndSendSingleReportData();
+    static void TestMergeOverlappedAttributePath();
+    static void TestMergeAttributePathWhenDirtySetPoolExhausted();
+
+protected:
     static bool InsertToDirtySet(const AttributePathParams & aPath);
 
     struct ExpectedDirtySetContent : public AttributePathParams
@@ -104,6 +108,12 @@ private:
     }
 };
 
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
+
+TestContext TestReportingEngine::ctx;
+
 class TestExchangeDelegate : public Messaging::ExchangeDelegate
 {
     CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
@@ -122,10 +132,9 @@ public:
     chip::app::ReadHandler::ApplicationCallback * GetAppCallback() override { return nullptr; }
 };
 
-void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReportingEngine, TestBuildAndSendSingleReportData)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle readRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
     ReadRequestMessage::Builder readRequestBuilder;
@@ -133,31 +142,31 @@ void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite
 
     err = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
                                                       app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     TestExchangeDelegate delegate;
     Messaging::ExchangeContext * exchangeCtx = ctx.NewExchangeToAlice(&delegate);
 
     writer.Init(std::move(readRequestbuf));
     err = readRequestBuilder.Init(&writer);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     AttributePathIBs::Builder & attributePathListBuilder = readRequestBuilder.CreateAttributeRequests();
-    NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(readRequestBuilder.GetError() == CHIP_NO_ERROR);
     AttributePathIB::Builder & attributePathBuilder1 = attributePathListBuilder.CreatePath();
-    NL_TEST_ASSERT(apSuite, attributePathListBuilder.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(attributePathListBuilder.GetError() == CHIP_NO_ERROR);
     attributePathBuilder1.Node(1).Endpoint(kTestEndpointId).Cluster(kTestClusterId).Attribute(kTestFieldId1).EndOfAttributePathIB();
-    NL_TEST_ASSERT(apSuite, attributePathBuilder1.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(attributePathBuilder1.GetError() == CHIP_NO_ERROR);
 
     AttributePathIB::Builder & attributePathBuilder2 = attributePathListBuilder.CreatePath();
-    NL_TEST_ASSERT(apSuite, attributePathListBuilder.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(attributePathListBuilder.GetError() == CHIP_NO_ERROR);
     attributePathBuilder2.Node(1).Endpoint(kTestEndpointId).Cluster(kTestClusterId).Attribute(kTestFieldId2).EndOfAttributePathIB();
-    NL_TEST_ASSERT(apSuite, attributePathBuilder2.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(attributePathBuilder2.GetError() == CHIP_NO_ERROR);
     attributePathListBuilder.EndOfAttributePathIBs();
 
-    NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(readRequestBuilder.GetError() == CHIP_NO_ERROR);
     readRequestBuilder.IsFabricFiltered(false).EndOfReadRequestMessage();
-    NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
+    EXPECT_TRUE(readRequestBuilder.GetError() == CHIP_NO_ERROR);
     err = writer.Finalize(&readRequestbuf);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     app::ReadHandler readHandler(dummy, exchangeCtx, chip::app::ReadHandler::InteractionType::Read,
                                  app::reporting::GetDefaultReportScheduler());
     readHandler.OnInitialRequest(std::move(readRequestbuf));
@@ -165,16 +174,15 @@ void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite
 
     ctx.DrainAndServiceIO();
 
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 }
 
-void TestReportingEngine::TestMergeOverlappedAttributePath(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReportingEngine, TestMergeOverlappedAttributePath)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    err               = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
-                                                                    app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    err            = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
+                                                      app::reporting::GetDefaultReportScheduler());
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     AttributePathParams * clusterInfo = InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.CreateObject();
     clusterInfo->mEndpointId          = 1;
@@ -186,8 +194,7 @@ void TestReportingEngine::TestMergeOverlappedAttributePath(nlTestSuite * apSuite
         testClusterInfo.mEndpointId  = 1;
         testClusterInfo.mClusterId   = 1;
         testClusterInfo.mAttributeId = 3;
-        NL_TEST_ASSERT(apSuite,
-                       !InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
+        EXPECT_TRUE(!InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
     }
     {
         AttributePathParams testClusterInfo;
@@ -195,8 +202,7 @@ void TestReportingEngine::TestMergeOverlappedAttributePath(nlTestSuite * apSuite
         testClusterInfo.mClusterId   = 1;
         testClusterInfo.mAttributeId = 1;
         testClusterInfo.mListIndex   = 2;
-        NL_TEST_ASSERT(apSuite,
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
+        EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
     }
 
     {
@@ -204,17 +210,15 @@ void TestReportingEngine::TestMergeOverlappedAttributePath(nlTestSuite * apSuite
         testClusterInfo.mEndpointId  = 1;
         testClusterInfo.mClusterId   = 1;
         testClusterInfo.mAttributeId = kInvalidAttributeId;
-        NL_TEST_ASSERT(apSuite,
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
+        EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
     }
 
     {
         AttributePathParams testClusterInfo;
         testClusterInfo.mClusterId   = kInvalidClusterId;
         testClusterInfo.mAttributeId = kInvalidAttributeId;
-        NL_TEST_ASSERT(apSuite,
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
-        NL_TEST_ASSERT(apSuite, clusterInfo->mClusterId == kInvalidClusterId && clusterInfo->mAttributeId == kInvalidAttributeId);
+        EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
+        EXPECT_TRUE(clusterInfo->mClusterId == kInvalidClusterId && clusterInfo->mAttributeId == kInvalidAttributeId);
     }
 
     {
@@ -222,11 +226,9 @@ void TestReportingEngine::TestMergeOverlappedAttributePath(nlTestSuite * apSuite
         testClusterInfo.mEndpointId  = kInvalidEndpointId;
         testClusterInfo.mClusterId   = kInvalidClusterId;
         testClusterInfo.mAttributeId = kInvalidAttributeId;
-        NL_TEST_ASSERT(apSuite,
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
-        NL_TEST_ASSERT(apSuite,
-                       clusterInfo->mEndpointId == kInvalidEndpointId && clusterInfo->mClusterId == kInvalidClusterId &&
-                           clusterInfo->mAttributeId == kInvalidAttributeId);
+        EXPECT_TRUE(InteractionModelEngine::GetInstance()->GetReportingEngine().MergeOverlappedAttributePath(testClusterInfo));
+        EXPECT_TRUE(clusterInfo->mEndpointId == kInvalidEndpointId && clusterInfo->mClusterId == kInvalidClusterId &&
+                    clusterInfo->mAttributeId == kInvalidAttributeId);
     }
     InteractionModelEngine::GetInstance()->GetReportingEngine().Shutdown();
 }
@@ -240,13 +242,12 @@ bool TestReportingEngine::InsertToDirtySet(const AttributePathParams & aPath)
     return true;
 }
 
-void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestReportingEngine, TestMergeAttributePathWhenDirtySetPoolExhausted)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    err               = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
-                                                                    app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    err            = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
+                                                      app::reporting::GetDefaultReportScheduler());
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.ReleaseAll();
     InteractionModelEngine::GetInstance()->GetReportingEngine().BumpDirtySetGeneration();
@@ -255,13 +256,12 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
     // -> Expected behavior: The dirty set is replaced by a wildcard attribute path under the same cluster.
     for (AttributeId i = 1; i <= CHIP_IM_SERVER_MAX_NUM_DIRTY_SET; i++)
     {
-        NL_TEST_ASSERT(apSuite, InsertToDirtySet(AttributePathParams(kTestEndpointId, kTestClusterId, i)));
+        EXPECT_TRUE(InsertToDirtySet(AttributePathParams(kTestEndpointId, kTestClusterId, i)));
     }
-    NL_TEST_ASSERT(apSuite,
-                   CHIP_NO_ERROR ==
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
-                           AttributePathParams(kTestEndpointId, kTestClusterId, CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1)));
-    NL_TEST_ASSERT(apSuite, VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kTestClusterId)));
+    EXPECT_TRUE(CHIP_NO_ERROR ==
+                InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
+                    AttributePathParams(kTestEndpointId, kTestClusterId, CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1)));
+    EXPECT_TRUE(VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kTestClusterId)));
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.ReleaseAll();
 
@@ -269,13 +269,12 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
     // -> Expected behavior: The dirty set is replaced by a wildcard cluster path under the same endpoint.
     for (ClusterId i = 1; i <= CHIP_IM_SERVER_MAX_NUM_DIRTY_SET; i++)
     {
-        NL_TEST_ASSERT(apSuite, InsertToDirtySet(AttributePathParams(kTestEndpointId, i, 1)));
+        EXPECT_TRUE(InsertToDirtySet(AttributePathParams(kTestEndpointId, i, 1)));
     }
-    NL_TEST_ASSERT(apSuite,
-                   CHIP_NO_ERROR ==
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
-                           AttributePathParams(kTestEndpointId, ClusterId(CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1), 1)));
-    NL_TEST_ASSERT(apSuite, VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kInvalidClusterId)));
+    EXPECT_TRUE(CHIP_NO_ERROR ==
+                InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
+                    AttributePathParams(kTestEndpointId, ClusterId(CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1), 1)));
+    EXPECT_TRUE(VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kInvalidClusterId)));
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.ReleaseAll();
 
@@ -283,13 +282,12 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
     // -> Expected behavior: The dirty set is replaced by a wildcard endpoint.
     for (EndpointId i = 1; i <= CHIP_IM_SERVER_MAX_NUM_DIRTY_SET; i++)
     {
-        NL_TEST_ASSERT(apSuite, InsertToDirtySet(AttributePathParams(EndpointId(i), i, i)));
+        EXPECT_TRUE(InsertToDirtySet(AttributePathParams(EndpointId(i), i, i)));
     }
-    NL_TEST_ASSERT(apSuite,
-                   CHIP_NO_ERROR ==
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
-                           AttributePathParams(EndpointId(CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1), 1, 1)));
-    NL_TEST_ASSERT(apSuite, VerifyDirtySetContent(AttributePathParams()));
+    EXPECT_TRUE(CHIP_NO_ERROR ==
+                InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
+                    AttributePathParams(EndpointId(CHIP_IM_SERVER_MAX_NUM_DIRTY_SET + 1), 1, 1)));
+    EXPECT_TRUE(VerifyDirtySetContent(AttributePathParams()));
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.ReleaseAll();
 
@@ -297,15 +295,13 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
     // -> Expected behavior: The existing paths are merged into one single wildcard attribute path. New path is inserted as-is.
     for (EndpointId i = 1; i <= CHIP_IM_SERVER_MAX_NUM_DIRTY_SET; i++)
     {
-        NL_TEST_ASSERT(apSuite, InsertToDirtySet(AttributePathParams(kTestEndpointId, kTestClusterId, i)));
+        EXPECT_TRUE(InsertToDirtySet(AttributePathParams(kTestEndpointId, kTestClusterId, i)));
     }
-    NL_TEST_ASSERT(apSuite,
-                   CHIP_NO_ERROR ==
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
-                           AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
-    NL_TEST_ASSERT(apSuite,
-                   VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kTestClusterId),
-                                         AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
+    EXPECT_TRUE(CHIP_NO_ERROR ==
+                InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
+                    AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
+    EXPECT_TRUE(VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kTestClusterId),
+                                      AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().mGlobalDirtySet.ReleaseAll();
 
@@ -313,15 +309,13 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
     // -> Expected behavior: The existing paths are merged into one single wildcard cluster path. New path is inserted as-is.
     for (EndpointId i = 1; i <= CHIP_IM_SERVER_MAX_NUM_DIRTY_SET; i++)
     {
-        NL_TEST_ASSERT(apSuite, InsertToDirtySet(AttributePathParams(kTestEndpointId, i, 1)));
+        EXPECT_TRUE(InsertToDirtySet(AttributePathParams(kTestEndpointId, i, 1)));
     }
-    NL_TEST_ASSERT(apSuite,
-                   CHIP_NO_ERROR ==
-                       InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
-                           AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
-    NL_TEST_ASSERT(apSuite,
-                   VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kInvalidClusterId),
-                                         AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
+    EXPECT_TRUE(CHIP_NO_ERROR ==
+                InteractionModelEngine::GetInstance()->GetReportingEngine().InsertPathIntoDirtySet(
+                    AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
+    EXPECT_TRUE(VerifyDirtySetContent(AttributePathParams(kTestEndpointId, kInvalidClusterId),
+                                      AttributePathParams(kTestEndpointId + 1, kTestClusterId + 1, 1)));
 
     InteractionModelEngine::GetInstance()->GetReportingEngine().Shutdown();
 }
@@ -331,31 +325,5 @@ void TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted(nlTest
 } // namespace chip
 
 namespace {
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("CheckBuildAndSendSingleReportData", chip::app::reporting::TestReportingEngine::TestBuildAndSendSingleReportData),
-    NL_TEST_DEF("TestMergeOverlappedAttributePath", chip::app::reporting::TestReportingEngine::TestMergeOverlappedAttributePath),
-    NL_TEST_DEF("TestMergeAttributePathWhenDirtySetPoolExhausted", chip::app::reporting::TestReportingEngine::TestMergeAttributePathWhenDirtySetPoolExhausted),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestReportingEngine",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
 
 } // namespace
-
-int TestReportingEngine()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestReportingEngine)

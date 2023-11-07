@@ -33,27 +33,32 @@
 #include <lib/core/TLVDebug.h>
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using TestContext = chip::Test::AppContext;
 
 namespace chip {
 namespace app {
-class TestInteractionModelEngine
+class TestInteractionModelEngine : public ::testing::Test
 {
 public:
-    static void TestAttributePathParamsPushRelease(nlTestSuite * apSuite, void * apContext);
-    static void TestRemoveDuplicateConcreteAttribute(nlTestSuite * apSuite, void * apContext);
-#if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
-    static void TestSubscriptionResumptionTimer(nlTestSuite * apSuite, void * apContext);
-#endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
+    static void SetUpTestSuite() { TestContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestContext::Finalize(&ctx); }
+    static TestContext ctx;
+
+    static void TestAttributePathParamsPushRelease();
+    static void TestRemoveDuplicateConcreteAttribute();
+    static void TestSubscriptionResumptionTimer();
+
     static int GetAttributePathListLength(ObjectList<AttributePathParams> * apattributePathParamsList);
 };
+
+TestContext TestInteractionModelEngine::ctx;
 
 int TestInteractionModelEngine::GetAttributePathListLength(ObjectList<AttributePathParams> * apAttributePathParamsList)
 {
@@ -67,13 +72,16 @@ int TestInteractionModelEngine::GetAttributePathListLength(ObjectList<AttributeP
     return length;
 }
 
-void TestInteractionModelEngine::TestAttributePathParamsPushRelease(nlTestSuite * apSuite, void * apContext)
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
+
+STATIC_TEST(TestInteractionModelEngine, TestAttributePathParamsPushRelease)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    err               = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
-                                                                    app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    err            = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
+                                                      app::reporting::GetDefaultReportScheduler());
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     ObjectList<AttributePathParams> * attributePathParamsList = nullptr;
     AttributePathParams attributePathParams1;
     AttributePathParams attributePathParams2;
@@ -84,77 +92,73 @@ void TestInteractionModelEngine::TestAttributePathParamsPushRelease(nlTestSuite 
     attributePathParams3.mEndpointId = 3;
 
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
-    NL_TEST_ASSERT(apSuite,
-                   attributePathParamsList != nullptr &&
-                       attributePathParams1.mEndpointId == attributePathParamsList->mValue.mEndpointId);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 1);
+    EXPECT_TRUE(attributePathParamsList != nullptr &&
+                attributePathParams1.mEndpointId == attributePathParamsList->mValue.mEndpointId);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 1);
 
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
-    NL_TEST_ASSERT(apSuite,
-                   attributePathParamsList != nullptr &&
-                       attributePathParams2.mEndpointId == attributePathParamsList->mValue.mEndpointId);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 2);
+    EXPECT_TRUE(attributePathParamsList != nullptr &&
+                attributePathParams2.mEndpointId == attributePathParamsList->mValue.mEndpointId);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 2);
 
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
-    NL_TEST_ASSERT(apSuite,
-                   attributePathParamsList != nullptr &&
-                       attributePathParams3.mEndpointId == attributePathParamsList->mValue.mEndpointId);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 3);
+    EXPECT_TRUE(attributePathParamsList != nullptr &&
+                attributePathParams3.mEndpointId == attributePathParamsList->mValue.mEndpointId);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 3);
 
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 0);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 0);
 }
 
-void TestInteractionModelEngine::TestRemoveDuplicateConcreteAttribute(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestInteractionModelEngine, TestRemoveDuplicateConcreteAttribute)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    err               = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
-                                                                    app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    err            = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
+                                                      app::reporting::GetDefaultReportScheduler());
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     ObjectList<AttributePathParams> * attributePathParamsList = nullptr;
     AttributePathParams attributePathParams1;
     AttributePathParams attributePathParams2;
     AttributePathParams attributePathParams3;
 
     // Three concrete paths, no duplicates
-    attributePathParams1.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams1.mClusterId   = Test::MockClusterId(2);
-    attributePathParams1.mAttributeId = Test::MockAttributeId(1);
+    attributePathParams1.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams1.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams1.mAttributeId = chip::Test::MockAttributeId(1);
 
-    attributePathParams2.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams2.mClusterId   = Test::MockClusterId(2);
-    attributePathParams2.mAttributeId = Test::MockAttributeId(2);
+    attributePathParams2.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams2.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams2.mAttributeId = chip::Test::MockAttributeId(2);
 
-    attributePathParams3.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams3.mClusterId   = Test::MockClusterId(2);
-    attributePathParams3.mAttributeId = Test::MockAttributeId(3);
+    attributePathParams3.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams3.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams3.mAttributeId = chip::Test::MockAttributeId(3);
 
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 3);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 3);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
     attributePathParams1.mEndpointId  = kInvalidEndpointId;
     attributePathParams1.mClusterId   = kInvalidClusterId;
     attributePathParams1.mAttributeId = kInvalidAttributeId;
 
-    attributePathParams2.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams2.mClusterId   = Test::MockClusterId(2);
-    attributePathParams2.mAttributeId = Test::MockAttributeId(2);
+    attributePathParams2.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams2.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams2.mAttributeId = chip::Test::MockAttributeId(2);
 
-    attributePathParams3.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams3.mClusterId   = Test::MockClusterId(2);
-    attributePathParams3.mAttributeId = Test::MockAttributeId(3);
+    attributePathParams3.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams3.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams3.mAttributeId = chip::Test::MockAttributeId(3);
 
     // 1st path is wildcard endpoint, 2nd, 3rd paths are concrete paths, the concrete ones would be removed.
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 1);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 1);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
     // 2nd path is wildcard endpoint, 1st, 3rd paths are concrete paths, the latter two would be removed.
@@ -162,7 +166,7 @@ void TestInteractionModelEngine::TestRemoveDuplicateConcreteAttribute(nlTestSuit
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 1);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 1);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
     // 3nd path is wildcard endpoint, 1st, 2nd paths are concrete paths, the latter two would be removed.
@@ -170,78 +174,77 @@ void TestInteractionModelEngine::TestRemoveDuplicateConcreteAttribute(nlTestSuit
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 1);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 1);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
-    attributePathParams1.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams1.mClusterId   = Test::MockClusterId(2);
+    attributePathParams1.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams1.mClusterId   = chip::Test::MockClusterId(2);
     attributePathParams1.mAttributeId = kInvalidAttributeId;
 
-    attributePathParams2.mEndpointId  = Test::kMockEndpoint2;
-    attributePathParams2.mClusterId   = Test::MockClusterId(2);
-    attributePathParams2.mAttributeId = Test::MockAttributeId(2);
+    attributePathParams2.mEndpointId  = chip::Test::kMockEndpoint2;
+    attributePathParams2.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams2.mAttributeId = chip::Test::MockAttributeId(2);
 
-    attributePathParams3.mEndpointId  = Test::kMockEndpoint2;
-    attributePathParams3.mClusterId   = Test::MockClusterId(2);
-    attributePathParams3.mAttributeId = Test::MockAttributeId(3);
+    attributePathParams3.mEndpointId  = chip::Test::kMockEndpoint2;
+    attributePathParams3.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams3.mAttributeId = chip::Test::MockAttributeId(3);
 
     // 1st is wildcard one, but not intersect with the latter two concrete paths, so the paths in total are 3 finally
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 3);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 3);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
     attributePathParams1.mEndpointId  = kInvalidEndpointId;
     attributePathParams1.mClusterId   = kInvalidClusterId;
     attributePathParams1.mAttributeId = kInvalidAttributeId;
 
-    attributePathParams2.mEndpointId  = Test::kMockEndpoint3;
+    attributePathParams2.mEndpointId  = chip::Test::kMockEndpoint3;
     attributePathParams2.mClusterId   = kInvalidClusterId;
     attributePathParams2.mAttributeId = kInvalidAttributeId;
 
     attributePathParams3.mEndpointId  = kInvalidEndpointId;
     attributePathParams3.mClusterId   = kInvalidClusterId;
-    attributePathParams3.mAttributeId = Test::MockAttributeId(3);
+    attributePathParams3.mAttributeId = chip::Test::MockAttributeId(3);
 
     // Wildcards cannot be deduplicated.
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams3);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 3);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 3);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 
     attributePathParams1.mEndpointId  = kInvalidEndpointId;
-    attributePathParams1.mClusterId   = Test::MockClusterId(2);
-    attributePathParams1.mAttributeId = Test::MockAttributeId(10);
+    attributePathParams1.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams1.mAttributeId = chip::Test::MockAttributeId(10);
 
-    attributePathParams2.mEndpointId  = Test::kMockEndpoint3;
-    attributePathParams2.mClusterId   = Test::MockClusterId(2);
-    attributePathParams2.mAttributeId = Test::MockAttributeId(10);
+    attributePathParams2.mEndpointId  = chip::Test::kMockEndpoint3;
+    attributePathParams2.mClusterId   = chip::Test::MockClusterId(2);
+    attributePathParams2.mAttributeId = chip::Test::MockAttributeId(10);
 
     // 1st path is wildcard endpoint, 2nd path is invalid attribute
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams1);
     InteractionModelEngine::GetInstance()->PushFrontAttributePathList(attributePathParamsList, attributePathParams2);
     InteractionModelEngine::GetInstance()->RemoveDuplicateConcreteAttributePath(attributePathParamsList);
-    NL_TEST_ASSERT(apSuite, GetAttributePathListLength(attributePathParamsList) == 2);
+    EXPECT_TRUE(GetAttributePathListLength(attributePathParamsList) == 2);
     InteractionModelEngine::GetInstance()->ReleaseAttributePathList(attributePathParamsList);
 }
 
 #if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
-void TestInteractionModelEngine::TestSubscriptionResumptionTimer(nlTestSuite * apSuite, void * apContext)
+STATIC_TEST(TestInteractionModelEngine, TestSubscriptionResumptionTimer)
 {
-    TestContext & ctx = *static_cast<TestContext *>(apContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    err               = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
-                                                                    app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    err            = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(),
+                                                      app::reporting::GetDefaultReportScheduler());
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     uint32_t timeTillNextResubscriptionMs;
     InteractionModelEngine::GetInstance()->mNumSubscriptionResumptionRetries = 0;
     timeTillNextResubscriptionMs = InteractionModelEngine::GetInstance()->ComputeTimeSecondsTillNextSubscriptionResumption();
-    NL_TEST_ASSERT(apSuite, timeTillNextResubscriptionMs == CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS);
+    EXPECT_TRUE(timeTillNextResubscriptionMs == CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS);
 
     uint32_t lastTimeTillNextResubscriptionMs = timeTillNextResubscriptionMs;
     for (InteractionModelEngine::GetInstance()->mNumSubscriptionResumptionRetries = 1;
@@ -250,49 +253,16 @@ void TestInteractionModelEngine::TestSubscriptionResumptionTimer(nlTestSuite * a
          InteractionModelEngine::GetInstance()->mNumSubscriptionResumptionRetries++)
     {
         timeTillNextResubscriptionMs = InteractionModelEngine::GetInstance()->ComputeTimeSecondsTillNextSubscriptionResumption();
-        NL_TEST_ASSERT(apSuite, timeTillNextResubscriptionMs >= lastTimeTillNextResubscriptionMs);
-        NL_TEST_ASSERT(apSuite, timeTillNextResubscriptionMs < CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS);
+        EXPECT_TRUE(timeTillNextResubscriptionMs >= lastTimeTillNextResubscriptionMs);
+        EXPECT_TRUE(timeTillNextResubscriptionMs < CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS);
         lastTimeTillNextResubscriptionMs = timeTillNextResubscriptionMs;
     }
 
     InteractionModelEngine::GetInstance()->mNumSubscriptionResumptionRetries = 2000;
     timeTillNextResubscriptionMs = InteractionModelEngine::GetInstance()->ComputeTimeSecondsTillNextSubscriptionResumption();
-    NL_TEST_ASSERT(apSuite, timeTillNextResubscriptionMs == CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS);
+    EXPECT_TRUE(timeTillNextResubscriptionMs == CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS);
 }
 #endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
 
 } // namespace app
 } // namespace chip
-
-namespace {
-
-// clang-format off
-const nlTest sTests[] =
-        {
-                NL_TEST_DEF("TestAttributePathParamsPushRelease", chip::app::TestInteractionModelEngine::TestAttributePathParamsPushRelease),
-                NL_TEST_DEF("TestRemoveDuplicateConcreteAttribute", chip::app::TestInteractionModelEngine::TestRemoveDuplicateConcreteAttribute),
-#if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
-                NL_TEST_DEF("TestSubscriptionResumptionTimer", chip::app::TestInteractionModelEngine::TestSubscriptionResumptionTimer),
-#endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
-                NL_TEST_SENTINEL()
-        };
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestInteractionModelEngine",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
-} // namespace
-
-int TestInteractionModelEngine()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestInteractionModelEngine)

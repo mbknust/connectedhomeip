@@ -17,9 +17,8 @@
 
 #include <app/clusters/operational-state-server/operational-state-cluster-objects.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using namespace chip;
 using namespace chip::DeviceLayer;
@@ -27,31 +26,38 @@ using namespace chip::app::Clusters::OperationalState;
 
 namespace {
 
-void TestStructGenericOperationalStateConstructorWithOnlyStateID(nlTestSuite * inSuite, void * inContext)
+class TestOperationalDeviceStateClusterObjects : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalStateConstructorWithOnlyStateID)
 {
     using namespace chip::app::Clusters::OperationalState;
     // General state: Stopped
     GenericOperationalState operationalStateStopped(to_underlying(OperationalStateEnum::kStopped));
-    NL_TEST_ASSERT(inSuite, operationalStateStopped.operationalStateID == to_underlying(OperationalStateEnum::kStopped));
-    NL_TEST_ASSERT(inSuite, operationalStateStopped.operationalStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalStateStopped.operationalStateID == to_underlying(OperationalStateEnum::kStopped));
+    EXPECT_TRUE(operationalStateStopped.operationalStateLabel.HasValue() == false);
 
     // General state: Running
     GenericOperationalState operationalStateRunning(to_underlying(OperationalStateEnum::kRunning));
-    NL_TEST_ASSERT(inSuite, operationalStateRunning.operationalStateID == to_underlying(OperationalStateEnum::kRunning));
-    NL_TEST_ASSERT(inSuite, operationalStateRunning.operationalStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalStateRunning.operationalStateID == to_underlying(OperationalStateEnum::kRunning));
+    EXPECT_TRUE(operationalStateRunning.operationalStateLabel.HasValue() == false);
 
     // General state: Paused
     GenericOperationalState operationalStatePaused(to_underlying(OperationalStateEnum::kPaused));
-    NL_TEST_ASSERT(inSuite, operationalStatePaused.operationalStateID == to_underlying(OperationalStateEnum::kPaused));
-    NL_TEST_ASSERT(inSuite, operationalStatePaused.operationalStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalStatePaused.operationalStateID == to_underlying(OperationalStateEnum::kPaused));
+    EXPECT_TRUE(operationalStatePaused.operationalStateLabel.HasValue() == false);
 
     // General state: Error
     GenericOperationalState operationalStateError(to_underlying(OperationalStateEnum::kError));
-    NL_TEST_ASSERT(inSuite, operationalStateError.operationalStateID == to_underlying(OperationalStateEnum::kError));
-    NL_TEST_ASSERT(inSuite, operationalStateError.operationalStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalStateError.operationalStateID == to_underlying(OperationalStateEnum::kError));
+    EXPECT_TRUE(operationalStateError.operationalStateLabel.HasValue() == false);
 }
 
-void TestStructGenericOperationalStateConstructorWithStateIDAndStateLabel(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalStateConstructorWithStateIDAndStateLabel)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -66,14 +72,13 @@ void TestStructGenericOperationalStateConstructorWithStateIDAndStateLabel(nlTest
     GenericOperationalState operationalState(to_underlying(ManufactureOperationalStateEnum::kRebooting),
                                              Optional<CharSpan>(CharSpan::fromCharString(buffer)));
 
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.Value().size() == strlen(buffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, strlen(buffer)) == 0);
+    EXPECT_TRUE(operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
+    EXPECT_TRUE(operationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalState.operationalStateLabel.Value().size() == strlen(buffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, strlen(buffer)) == 0);
 }
 
-void TestStructGenericOperationalStateCopyConstructor(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalStateCopyConstructor)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -89,18 +94,16 @@ void TestStructGenericOperationalStateCopyConstructor(nlTestSuite * inSuite, voi
 
     GenericOperationalState desOperationalState(srcOperationalState);
 
-    NL_TEST_ASSERT(inSuite, desOperationalState.operationalStateID == srcOperationalState.operationalStateID);
-    NL_TEST_ASSERT(inSuite, desOperationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalState.operationalStateLabel.Value().size() ==
-                       srcOperationalState.operationalStateLabel.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalState.operationalStateLabel.Value().data()),
-                          const_cast<char *>(srcOperationalState.operationalStateLabel.Value().data()),
-                          desOperationalState.operationalStateLabel.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalState.operationalStateID == srcOperationalState.operationalStateID);
+    EXPECT_TRUE(desOperationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(desOperationalState.operationalStateLabel.Value().size() ==
+                srcOperationalState.operationalStateLabel.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalState.operationalStateLabel.Value().data()),
+                       const_cast<char *>(srcOperationalState.operationalStateLabel.Value().data()),
+                       desOperationalState.operationalStateLabel.Value().size()) == 0);
 }
 
-void TestStructGenericOperationalStateCopyAssignment(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalStateCopyAssignment)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -116,18 +119,16 @@ void TestStructGenericOperationalStateCopyAssignment(nlTestSuite * inSuite, void
 
     GenericOperationalState desOperationalState = srcOperationalState;
 
-    NL_TEST_ASSERT(inSuite, desOperationalState.operationalStateID == srcOperationalState.operationalStateID);
-    NL_TEST_ASSERT(inSuite, desOperationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalState.operationalStateLabel.Value().size() ==
-                       srcOperationalState.operationalStateLabel.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalState.operationalStateLabel.Value().data()),
-                          const_cast<char *>(srcOperationalState.operationalStateLabel.Value().data()),
-                          desOperationalState.operationalStateLabel.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalState.operationalStateID == srcOperationalState.operationalStateID);
+    EXPECT_TRUE(desOperationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(desOperationalState.operationalStateLabel.Value().size() ==
+                srcOperationalState.operationalStateLabel.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalState.operationalStateLabel.Value().data()),
+                       const_cast<char *>(srcOperationalState.operationalStateLabel.Value().data()),
+                       desOperationalState.operationalStateLabel.Value().size()) == 0);
 }
 
-void TestStructGenericOperationalStateFuncSet(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalStateFuncSet)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -144,17 +145,16 @@ void TestStructGenericOperationalStateFuncSet(nlTestSuite * inSuite, void * inCo
 
     // change state without label
     operationalState.Set(to_underlying(OperationalStateEnum::kStopped));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateID == to_underlying(OperationalStateEnum::kStopped));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalState.operationalStateID == to_underlying(OperationalStateEnum::kStopped));
+    EXPECT_TRUE(operationalState.operationalStateLabel.HasValue() == false);
 
     // change state with label
     operationalState.Set(to_underlying(ManufactureOperationalStateEnum::kRebooting),
                          Optional<CharSpan>(CharSpan::fromCharString(buffer)));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.Value().size() == strlen(buffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, strlen(buffer)) == 0);
+    EXPECT_TRUE(operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
+    EXPECT_TRUE(operationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalState.operationalStateLabel.Value().size() == strlen(buffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, strlen(buffer)) == 0);
 
     // change state with label, label len = kOperationalStateLabelMaxSize
     for (size_t i = 0; i < sizeof(buffer); i++)
@@ -163,11 +163,10 @@ void TestStructGenericOperationalStateFuncSet(nlTestSuite * inSuite, void * inCo
     }
     operationalState.Set(to_underlying(ManufactureOperationalStateEnum::kRebooting),
                          Optional<CharSpan>(CharSpan(buffer, sizeof(buffer))));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.Value().size() == sizeof(buffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, sizeof(buffer)) == 0);
+    EXPECT_TRUE(operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
+    EXPECT_TRUE(operationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalState.operationalStateLabel.Value().size() == sizeof(buffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer, sizeof(buffer)) == 0);
 
     // change state with label, label len larger than kOperationalStateLabelMaxSize
     char buffer2[kOperationalStateLabelMaxSize + 1];
@@ -178,51 +177,47 @@ void TestStructGenericOperationalStateFuncSet(nlTestSuite * inSuite, void * inCo
     }
     operationalState.Set(to_underlying(ManufactureOperationalStateEnum::kRebooting),
                          Optional<CharSpan>(CharSpan(buffer2, sizeof(buffer2))));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalState.operationalStateLabel.Value().size() == kOperationalStateLabelMaxSize);
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer2,
-                          kOperationalStateLabelMaxSize) == 0);
+    EXPECT_TRUE(operationalState.operationalStateID == to_underlying(ManufactureOperationalStateEnum::kRebooting));
+    EXPECT_TRUE(operationalState.operationalStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalState.operationalStateLabel.Value().size() == kOperationalStateLabelMaxSize);
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalState.operationalStateLabel.Value().data()), buffer2,
+                       kOperationalStateLabelMaxSize) == 0);
 }
 
-void TestStructGenericOperationalErrorConstructorWithOnlyStateID(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorConstructorWithOnlyStateID)
 {
     using namespace chip::app::Clusters::OperationalState;
     // General errors: NoError
     GenericOperationalError operationalErrorNoErr(to_underlying(ErrorStateEnum::kNoError));
 
-    NL_TEST_ASSERT(inSuite, operationalErrorNoErr.errorStateID == to_underlying(ErrorStateEnum::kNoError));
-    NL_TEST_ASSERT(inSuite, operationalErrorNoErr.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalErrorNoErr.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalErrorNoErr.errorStateID == to_underlying(ErrorStateEnum::kNoError));
+    EXPECT_TRUE(operationalErrorNoErr.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalErrorNoErr.errorStateDetails.HasValue() == false);
 
     // General errors: UnableToStartOrResume
     GenericOperationalError operationalErrorUnableToStartOrResume(to_underlying(ErrorStateEnum::kUnableToStartOrResume));
 
-    NL_TEST_ASSERT(inSuite,
-                   operationalErrorUnableToStartOrResume.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalErrorUnableToStartOrResume.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalErrorUnableToStartOrResume.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalErrorUnableToStartOrResume.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalErrorUnableToStartOrResume.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalErrorUnableToStartOrResume.errorStateDetails.HasValue() == false);
 
     // General errors: UnableToCompleteOperation
     GenericOperationalError operationalErrorkUnableToCompleteOperation(to_underlying(ErrorStateEnum::kUnableToCompleteOperation));
 
-    NL_TEST_ASSERT(inSuite,
-                   operationalErrorkUnableToCompleteOperation.errorStateID ==
-                       to_underlying(ErrorStateEnum::kUnableToCompleteOperation));
-    NL_TEST_ASSERT(inSuite, operationalErrorkUnableToCompleteOperation.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalErrorkUnableToCompleteOperation.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalErrorkUnableToCompleteOperation.errorStateID ==
+                to_underlying(ErrorStateEnum::kUnableToCompleteOperation));
+    EXPECT_TRUE(operationalErrorkUnableToCompleteOperation.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalErrorkUnableToCompleteOperation.errorStateDetails.HasValue() == false);
 
     // General errors: CommandInvalidInState
     GenericOperationalError operationalErrorCommandInvalidInState(to_underlying(ErrorStateEnum::kCommandInvalidInState));
 
-    NL_TEST_ASSERT(inSuite,
-                   operationalErrorCommandInvalidInState.errorStateID == to_underlying(ErrorStateEnum::kCommandInvalidInState));
-    NL_TEST_ASSERT(inSuite, operationalErrorCommandInvalidInState.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalErrorCommandInvalidInState.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalErrorCommandInvalidInState.errorStateID == to_underlying(ErrorStateEnum::kCommandInvalidInState));
+    EXPECT_TRUE(operationalErrorCommandInvalidInState.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalErrorCommandInvalidInState.errorStateDetails.HasValue() == false);
 }
 
-void TestStructGenericOperationalErrorConstructorWithStateIDAndStateLabel(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorConstructorWithStateIDAndStateLabel)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -237,16 +232,14 @@ void TestStructGenericOperationalErrorConstructorWithStateIDAndStateLabel(nlTest
     GenericOperationalError operationalError(to_underlying(ManufactureOperationalErrorEnum::kLowBattery),
                                              Optional<CharSpan>(CharSpan::fromCharString(labelBuffer)));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ManufactureOperationalErrorEnum::kLowBattery));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) ==
-                       0);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ManufactureOperationalErrorEnum::kLowBattery));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 }
 
-void TestStructGenericOperationalErrorConstructorWithFullParam(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorConstructorWithFullParam)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -263,21 +256,18 @@ void TestStructGenericOperationalErrorConstructorWithFullParam(nlTestSuite * inS
                                              Optional<CharSpan>(CharSpan::fromCharString(labelBuffer)),
                                              Optional<CharSpan>(CharSpan::fromCharString(detailBuffer)));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ManufactureOperationalErrorEnum::kLowBattery));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) ==
-                       0);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ManufactureOperationalErrorEnum::kLowBattery));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) == 0);
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.Value().size() == strlen(detailBuffer));
-    NL_TEST_ASSERT(
-        inSuite,
-        memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer, strlen(detailBuffer)) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateDetails.Value().size() == strlen(detailBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer, strlen(detailBuffer)) ==
+                0);
 }
 
-void TestStructGenericOperationalErrorCopyConstructor(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorCopyConstructor)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -296,25 +286,21 @@ void TestStructGenericOperationalErrorCopyConstructor(nlTestSuite * inSuite, voi
 
     // call copy constructor
     GenericOperationalError desOperationalError(srcOperationalError);
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateID == srcOperationalError.errorStateID);
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalError.errorStateLabel.Value().size() == srcOperationalError.errorStateLabel.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalError.errorStateLabel.Value().data()),
-                          const_cast<char *>(srcOperationalError.errorStateLabel.Value().data()),
-                          desOperationalError.errorStateLabel.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalError.errorStateID == srcOperationalError.errorStateID);
+    EXPECT_TRUE(desOperationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(desOperationalError.errorStateLabel.Value().size() == srcOperationalError.errorStateLabel.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalError.errorStateLabel.Value().data()),
+                       const_cast<char *>(srcOperationalError.errorStateLabel.Value().data()),
+                       desOperationalError.errorStateLabel.Value().size()) == 0);
 
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateDetails.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalError.errorStateDetails.Value().size() == srcOperationalError.errorStateDetails.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalError.errorStateDetails.Value().data()),
-                          const_cast<char *>(srcOperationalError.errorStateDetails.Value().data()),
-                          desOperationalError.errorStateDetails.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalError.errorStateDetails.HasValue() == true);
+    EXPECT_TRUE(desOperationalError.errorStateDetails.Value().size() == srcOperationalError.errorStateDetails.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalError.errorStateDetails.Value().data()),
+                       const_cast<char *>(srcOperationalError.errorStateDetails.Value().data()),
+                       desOperationalError.errorStateDetails.Value().size()) == 0);
 }
 
-void TestStructGenericOperationalErrorCopyAssignment(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorCopyAssignment)
 {
     using namespace chip::app::Clusters::OperationalState;
 
@@ -333,25 +319,21 @@ void TestStructGenericOperationalErrorCopyAssignment(nlTestSuite * inSuite, void
 
     // call copy assignment
     GenericOperationalError desOperationalError = srcOperationalError;
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateID == srcOperationalError.errorStateID);
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalError.errorStateLabel.Value().size() == srcOperationalError.errorStateLabel.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalError.errorStateLabel.Value().data()),
-                          const_cast<char *>(srcOperationalError.errorStateLabel.Value().data()),
-                          desOperationalError.errorStateLabel.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalError.errorStateID == srcOperationalError.errorStateID);
+    EXPECT_TRUE(desOperationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(desOperationalError.errorStateLabel.Value().size() == srcOperationalError.errorStateLabel.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalError.errorStateLabel.Value().data()),
+                       const_cast<char *>(srcOperationalError.errorStateLabel.Value().data()),
+                       desOperationalError.errorStateLabel.Value().size()) == 0);
 
-    NL_TEST_ASSERT(inSuite, desOperationalError.errorStateDetails.HasValue() == true);
-    NL_TEST_ASSERT(inSuite,
-                   desOperationalError.errorStateDetails.Value().size() == srcOperationalError.errorStateDetails.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(desOperationalError.errorStateDetails.Value().data()),
-                          const_cast<char *>(srcOperationalError.errorStateDetails.Value().data()),
-                          desOperationalError.errorStateDetails.Value().size()) == 0);
+    EXPECT_TRUE(desOperationalError.errorStateDetails.HasValue() == true);
+    EXPECT_TRUE(desOperationalError.errorStateDetails.Value().size() == srcOperationalError.errorStateDetails.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(desOperationalError.errorStateDetails.Value().data()),
+                       const_cast<char *>(srcOperationalError.errorStateDetails.Value().data()),
+                       desOperationalError.errorStateDetails.Value().size()) == 0);
 }
 
-void TestStructGenericOperationalErrorFuncSet(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalErrorFuncSet)
 {
     using namespace chip::app::Clusters::OperationalState;
     enum class ManufactureOperationalErrorEnum : uint8_t
@@ -366,46 +348,41 @@ void TestStructGenericOperationalErrorFuncSet(nlTestSuite * inSuite, void * inCo
     // General errors: NoError
     GenericOperationalError operationalError(to_underlying(ErrorStateEnum::kNoError));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kNoError));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kNoError));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 
     // call Set with stateId
     operationalError.Set(to_underlying(ErrorStateEnum::kUnableToStartOrResume));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == false);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 
     // call Set with stateId and StateLabel
     operationalError.Set(to_underlying(ErrorStateEnum::kUnableToStartOrResume),
                          Optional<CharSpan>(CharSpan::fromCharString(labelBuffer)));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) ==
-                       0);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 
     // call Set with stateId, StateLabel and StateDetails
     operationalError.Set(to_underlying(ErrorStateEnum::kUnableToStartOrResume),
                          Optional<CharSpan>(CharSpan::fromCharString(labelBuffer)),
                          Optional<CharSpan>(CharSpan::fromCharString(detailBuffer)));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) ==
-                       0);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == strlen(labelBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, strlen(labelBuffer)) == 0);
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.Value().size() == strlen(detailBuffer));
-    NL_TEST_ASSERT(
-        inSuite,
-        memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer, strlen(detailBuffer)) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateDetails.Value().size() == strlen(detailBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer, strlen(detailBuffer)) ==
+                0);
 
     // change state with label, label len = kOperationalStateLabelMaxSize
     for (size_t i = 0; i < sizeof(labelBuffer); i++)
@@ -415,13 +392,11 @@ void TestStructGenericOperationalErrorFuncSet(nlTestSuite * inSuite, void * inCo
     operationalError.Set(to_underlying(ErrorStateEnum::kUnableToStartOrResume),
                          Optional<CharSpan>(CharSpan(labelBuffer, sizeof(labelBuffer))));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == sizeof(labelBuffer));
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, sizeof(labelBuffer)) ==
-                       0);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == sizeof(labelBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer, sizeof(labelBuffer)) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 
     // change state with label, label len = kOperationalStateLabelMaxSize + 1
     char labelBuffer2[kOperationalErrorLabelMaxSize + 1];
@@ -432,13 +407,12 @@ void TestStructGenericOperationalErrorFuncSet(nlTestSuite * inSuite, void * inCo
     operationalError.Set(to_underlying(ErrorStateEnum::kUnableToStartOrResume),
                          Optional<CharSpan>(CharSpan(labelBuffer2, sizeof(labelBuffer2))));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == kOperationalErrorLabelMaxSize);
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer2,
-                          kOperationalErrorLabelMaxSize) == 0);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == false);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == kOperationalErrorLabelMaxSize);
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer2,
+                       kOperationalErrorLabelMaxSize) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == false);
 
     // change state with label and details, details len = kOperationalErrorDetailsMaxSize + 1
     char detailBuffer2[kOperationalErrorDetailsMaxSize + 1];
@@ -450,37 +424,35 @@ void TestStructGenericOperationalErrorFuncSet(nlTestSuite * inSuite, void * inCo
                          Optional<CharSpan>(CharSpan(labelBuffer2, sizeof(labelBuffer2))),
                          Optional<CharSpan>(CharSpan(detailBuffer2, sizeof(detailBuffer2))));
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.HasValue() == true);
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateLabel.Value().size() == kOperationalErrorLabelMaxSize);
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer2,
-                          kOperationalErrorLabelMaxSize) == 0);
+    EXPECT_TRUE(operationalError.errorStateID == to_underlying(ErrorStateEnum::kUnableToStartOrResume));
+    EXPECT_TRUE(operationalError.errorStateLabel.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateLabel.Value().size() == kOperationalErrorLabelMaxSize);
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateLabel.Value().data()), labelBuffer2,
+                       kOperationalErrorLabelMaxSize) == 0);
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.HasValue() == true);
+    EXPECT_TRUE(operationalError.errorStateDetails.HasValue() == true);
 
-    NL_TEST_ASSERT(inSuite, operationalError.errorStateDetails.Value().size() == kOperationalErrorDetailsMaxSize);
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer2,
-                          kOperationalErrorDetailsMaxSize) == 0);
+    EXPECT_TRUE(operationalError.errorStateDetails.Value().size() == kOperationalErrorDetailsMaxSize);
+    EXPECT_TRUE(memcmp(const_cast<char *>(operationalError.errorStateDetails.Value().data()), detailBuffer2,
+                       kOperationalErrorDetailsMaxSize) == 0);
 }
 
-void TestStructGenericOperationalPhaseConstructor(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalPhaseConstructor)
 {
     using namespace chip::app;
     using namespace chip::app::Clusters::OperationalState;
 
     GenericOperationalPhase phase = GenericOperationalPhase(DataModel::Nullable<CharSpan>());
-    NL_TEST_ASSERT(inSuite, phase.IsMissing() == true);
+    EXPECT_TRUE(phase.IsMissing() == true);
 
     char phaseBuffer[kOperationalPhaseNameMaxSize] = "start";
     GenericOperationalPhase phase2(DataModel::Nullable<CharSpan>(CharSpan::fromCharString(phaseBuffer)));
-    NL_TEST_ASSERT(inSuite, phase2.IsMissing() == false);
-    NL_TEST_ASSERT(inSuite, phase2.mPhaseName.Value().size() == strlen(phaseBuffer));
-    NL_TEST_ASSERT(inSuite, memcmp(const_cast<char *>(phase2.mPhaseName.Value().data()), phaseBuffer, strlen(phaseBuffer)) == 0);
+    EXPECT_TRUE(phase2.IsMissing() == false);
+    EXPECT_TRUE(phase2.mPhaseName.Value().size() == strlen(phaseBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(phase2.mPhaseName.Value().data()), phaseBuffer, strlen(phaseBuffer)) == 0);
 }
 
-void TestStructGenericOperationalPhaseCopyConstructor(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalPhaseCopyConstructor)
 {
     using namespace chip::app;
     using namespace chip::app::Clusters::OperationalState;
@@ -490,32 +462,30 @@ void TestStructGenericOperationalPhaseCopyConstructor(nlTestSuite * inSuite, voi
 
     GenericOperationalPhase phase2(phase);
 
-    NL_TEST_ASSERT(inSuite, phase2.IsMissing() == false);
-    NL_TEST_ASSERT(inSuite, phase2.mPhaseName.Value().size() == phase.mPhaseName.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(phase2.mPhaseName.Value().data()), const_cast<char *>(phase.mPhaseName.Value().data()),
-                          phase.mPhaseName.Value().size()) == 0);
+    EXPECT_TRUE(phase2.IsMissing() == false);
+    EXPECT_TRUE(phase2.mPhaseName.Value().size() == phase.mPhaseName.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(phase2.mPhaseName.Value().data()), const_cast<char *>(phase.mPhaseName.Value().data()),
+                       phase.mPhaseName.Value().size()) == 0);
 }
 
-void TestStructGenericOperationalPhaseCopyAssignment(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestOperationalDeviceStateClusterObjects, TestStructGenericOperationalPhaseCopyAssignment)
 {
     using namespace chip::app;
     using namespace chip::app::Clusters::OperationalState;
 
     // copy assignment with null-name
     GenericOperationalPhase phase = GenericOperationalPhase(DataModel::Nullable<CharSpan>());
-    NL_TEST_ASSERT(inSuite, phase.IsMissing() == true);
+    EXPECT_TRUE(phase.IsMissing() == true);
 
     // copy assignment with name
     char phaseBuffer[kOperationalPhaseNameMaxSize] = "start";
     GenericOperationalPhase phase2(DataModel::Nullable<CharSpan>(CharSpan::fromCharString(phaseBuffer)));
     phase = phase2;
 
-    NL_TEST_ASSERT(inSuite, phase.IsMissing() == false);
-    NL_TEST_ASSERT(inSuite, phase.mPhaseName.Value().size() == phase2.mPhaseName.Value().size());
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), const_cast<char *>(phase2.mPhaseName.Value().data()),
-                          phase.mPhaseName.Value().size()) == 0);
+    EXPECT_TRUE(phase.IsMissing() == false);
+    EXPECT_TRUE(phase.mPhaseName.Value().size() == phase2.mPhaseName.Value().size());
+    EXPECT_TRUE(memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), const_cast<char *>(phase2.mPhaseName.Value().data()),
+                       phase.mPhaseName.Value().size()) == 0);
 
     // copy assignment with name, name's len = kOperationalPhaseNameMaxSize
     for (size_t i = 0; i < sizeof(phaseBuffer); i++)
@@ -524,9 +494,9 @@ void TestStructGenericOperationalPhaseCopyAssignment(nlTestSuite * inSuite, void
     }
     phase = GenericOperationalPhase(DataModel::Nullable<CharSpan>(CharSpan(phaseBuffer, sizeof(phaseBuffer))));
 
-    NL_TEST_ASSERT(inSuite, phase.IsMissing() == false);
-    NL_TEST_ASSERT(inSuite, phase.mPhaseName.Value().size() == sizeof(phaseBuffer));
-    NL_TEST_ASSERT(inSuite, memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), phaseBuffer, sizeof(phaseBuffer)) == 0);
+    EXPECT_TRUE(phase.IsMissing() == false);
+    EXPECT_TRUE(phase.mPhaseName.Value().size() == sizeof(phaseBuffer));
+    EXPECT_TRUE(memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), phaseBuffer, sizeof(phaseBuffer)) == 0);
 
     // copy assignment with name, name's len = kOperationalPhaseNameMaxSize + 1
     char phaseBuffer2[kOperationalPhaseNameMaxSize + 1];
@@ -536,56 +506,9 @@ void TestStructGenericOperationalPhaseCopyAssignment(nlTestSuite * inSuite, void
     }
     phase = GenericOperationalPhase(DataModel::Nullable<CharSpan>(CharSpan(phaseBuffer2, sizeof(phaseBuffer2))));
 
-    NL_TEST_ASSERT(inSuite, phase.IsMissing() == false);
-    NL_TEST_ASSERT(inSuite, phase.mPhaseName.Value().size() == kOperationalPhaseNameMaxSize);
-    NL_TEST_ASSERT(inSuite,
-                   memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), phaseBuffer2, kOperationalPhaseNameMaxSize) == 0);
-}
-
-const nlTest sTests[] = {
-    NL_TEST_DEF("Test struct GenericOperationalState: constructor with only StateID",
-                TestStructGenericOperationalStateConstructorWithOnlyStateID),
-    NL_TEST_DEF("Test struct GenericOperationalState: constructor with StateID and StateLabel",
-                TestStructGenericOperationalStateConstructorWithStateIDAndStateLabel),
-    NL_TEST_DEF("Test struct GenericOperationalState: copy constructor", TestStructGenericOperationalStateCopyConstructor),
-    NL_TEST_DEF("Test struct GenericOperationalState: copy assignment", TestStructGenericOperationalStateCopyAssignment),
-    NL_TEST_DEF("Test struct GenericOperationalState: member function 'Set'", TestStructGenericOperationalStateFuncSet),
-    NL_TEST_DEF("Test struct GenericOperationalError: constructor with only StateID",
-                TestStructGenericOperationalErrorConstructorWithOnlyStateID),
-    NL_TEST_DEF("Test struct GenericOperationalError: constructor with StateID and StateLabel",
-                TestStructGenericOperationalErrorConstructorWithStateIDAndStateLabel),
-    NL_TEST_DEF("Test struct GenericOperationalError: constructor with StateID, StateLabel and StateDetail",
-                TestStructGenericOperationalErrorConstructorWithFullParam),
-    NL_TEST_DEF("Test struct GenericOperationalError: copy constructor", TestStructGenericOperationalErrorCopyConstructor),
-    NL_TEST_DEF("Test struct GenericOperationalError: copy assignment", TestStructGenericOperationalErrorCopyAssignment),
-    NL_TEST_DEF("Test struct GenericOperationalError: member function 'Set'", TestStructGenericOperationalErrorFuncSet),
-    NL_TEST_DEF("Test struct GenericOperationalPhase: constructor", TestStructGenericOperationalPhaseConstructor),
-    NL_TEST_DEF("Test struct GenericOperationalPhase: copy constructor", TestStructGenericOperationalPhaseCopyConstructor),
-    NL_TEST_DEF("Test struct GenericOperationalPhase: copy assignment", TestStructGenericOperationalPhaseCopyAssignment),
-    NL_TEST_SENTINEL()
-};
-
-int TestSetup(void * inContext)
-{
-    VerifyOrReturnError(CHIP_NO_ERROR == chip::Platform::MemoryInit(), FAILURE);
-    return SUCCESS;
-}
-
-int TestTearDown(void * inContext)
-{
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
+    EXPECT_TRUE(phase.IsMissing() == false);
+    EXPECT_TRUE(phase.mPhaseName.Value().size() == kOperationalPhaseNameMaxSize);
+    EXPECT_TRUE(memcmp(const_cast<char *>(phase.mPhaseName.Value().data()), phaseBuffer2, kOperationalPhaseNameMaxSize) == 0);
 }
 
 } // namespace
-
-int TestOperationalStateClusterObjects()
-{
-    nlTestSuite theSuite = { "Test Operational State Cluster Objects tests", &sTests[0], TestSetup, TestTearDown };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestOperationalStateClusterObjects)

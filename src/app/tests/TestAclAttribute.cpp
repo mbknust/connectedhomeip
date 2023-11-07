@@ -29,6 +29,7 @@
 #include <app/util/basic-types.h>
 #include <app/util/mock/Constants.h>
 #include <app/util/mock/Functions.h>
+#include <gtest/gtest.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/ErrorStr.h>
 #include <lib/core/TLV.h>
@@ -36,10 +37,9 @@
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <messaging/ExchangeContext.h>
 #include <messaging/Flags.h>
-#include <nlunit-test.h>
 #include <protocols/interaction_model/Constants.h>
 
 #include <type_traits>
@@ -47,9 +47,9 @@
 namespace {
 using namespace chip;
 using namespace chip::Access;
+using namespace chip::Test::Constants::TestAclAttribute;
 
 chip::ClusterId kTestClusterId        = 1;
-chip::ClusterId kTestDeniedClusterId1 = 1000;
 chip::ClusterId kTestDeniedClusterId2 = 3;
 chip::EndpointId kTestEndpointId      = 4;
 
@@ -138,11 +138,6 @@ public:
 namespace chip {
 namespace app {
 
-bool ConcreteAttributePathExists(const ConcreteAttributePath & aPath)
-{
-    return aPath.mClusterId != kTestDeniedClusterId1;
-}
-
 Protocols::InteractionModel::Status CheckEventSupportStatus(const ConcreteEventPath & aPath)
 {
     if (aPath.mClusterId == kTestDeniedClusterId1)
@@ -153,26 +148,29 @@ Protocols::InteractionModel::Status CheckEventSupportStatus(const ConcreteEventP
     return Protocols::InteractionModel::Status::Success;
 }
 
-class TestAclAttribute
+class TestAclAttribute : public ::testing::Test
 {
 public:
-    static void TestACLDeniedAttribute(nlTestSuite * apSuite, void * apContext);
+    static TestAccessContext ctx;
+    static void SetUpTestSuite() { TestAccessContext::Initialize(&ctx); }
+    static void TearDownTestSuite() { TestAccessContext::Finalize(&ctx); }
 };
+
+TestAccessContext TestAclAttribute::ctx;
 
 // Read Client sends a malformed subscribe request, interaction model engine fails to parse the request and generates a status
 // report to client, and client is closed.
-void TestAclAttribute::TestACLDeniedAttribute(nlTestSuite * apSuite, void * apContext)
+TEST_F(TestAclAttribute, TestACLDeniedAttribute)
 {
-    TestAccessContext & ctx = *static_cast<TestAccessContext *>(apContext);
-    CHIP_ERROR err          = CHIP_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     Messaging::ReliableMessageMgr * rm = ctx.GetExchangeManager().GetReliableMessageMgr();
-    NL_TEST_ASSERT(apSuite, rm->TestGetCountRetransTable() == 0);
+    EXPECT_TRUE(rm->TestGetCountRetransTable() == 0);
 
     MockInteractionModelApp delegate;
     auto * engine = chip::app::InteractionModelEngine::GetInstance();
     err           = engine->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable(), app::reporting::GetDefaultReportScheduler());
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     {
         app::ReadClient readClient(chip::app::InteractionModelEngine::GetInstance(), &ctx.GetExchangeManager(), delegate,
@@ -192,11 +190,11 @@ void TestAclAttribute::TestACLDeniedAttribute(nlTestSuite * apSuite, void * apCo
         readPrepareParams.mAttributePathParamsListSize = 2;
 
         err = readClient.SendRequest(readPrepareParams);
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(apSuite, delegate.mError == CHIP_IM_GLOBAL_STATUS(InvalidAction));
-        NL_TEST_ASSERT(apSuite, !delegate.mGotReport);
+        EXPECT_TRUE(delegate.mError == CHIP_IM_GLOBAL_STATUS(InvalidAction));
+        EXPECT_TRUE(!delegate.mGotReport);
         delegate.mError     = CHIP_NO_ERROR;
         delegate.mGotReport = false;
     }
@@ -218,11 +216,11 @@ void TestAclAttribute::TestACLDeniedAttribute(nlTestSuite * apSuite, void * apCo
         readPrepareParams.mAttributePathParamsListSize = 2;
 
         err = readClient.SendRequest(readPrepareParams);
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(apSuite, delegate.mError == CHIP_IM_GLOBAL_STATUS(InvalidAction));
-        NL_TEST_ASSERT(apSuite, !delegate.mGotReport);
+        EXPECT_TRUE(delegate.mError == CHIP_IM_GLOBAL_STATUS(InvalidAction));
+        EXPECT_TRUE(!delegate.mGotReport);
         delegate.mError     = CHIP_NO_ERROR;
         delegate.mGotReport = false;
     }
@@ -245,52 +243,19 @@ void TestAclAttribute::TestACLDeniedAttribute(nlTestSuite * apSuite, void * apCo
         readPrepareParams.mAttributePathParamsListSize = 2;
 
         err = readClient.SendRequest(readPrepareParams);
-        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(apSuite, delegate.mError == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(apSuite, delegate.mGotReport);
-        NL_TEST_ASSERT(apSuite, engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe) == 1);
+        EXPECT_TRUE(delegate.mError == CHIP_NO_ERROR);
+        EXPECT_TRUE(delegate.mGotReport);
+        EXPECT_TRUE(engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe) == 1);
         delegate.mError     = CHIP_NO_ERROR;
         delegate.mGotReport = false;
     }
 
-    NL_TEST_ASSERT(apSuite, engine->GetNumActiveReadClients() == 0);
+    EXPECT_TRUE(engine->GetNumActiveReadClients() == 0);
     engine->Shutdown();
-    NL_TEST_ASSERT(apSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+    EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
 }
 } // namespace app
 } // namespace chip
-
-namespace {
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestACLDeniedAttribute", chip::app::TestAclAttribute::TestACLDeniedAttribute),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "TestAclAttribute",
-    &sTests[0],
-    TestAccessContext::Initialize,
-    TestAccessContext::Finalize
-};
-// clang-format on
-
-} // namespace
-
-int TestAclAttribute()
-{
-    return chip::ExecuteTestsWithContext<TestAccessContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestAclAttribute)
