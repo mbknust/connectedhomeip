@@ -32,5 +32,14 @@ if (matter_enable_tracing_support && matter_trace_config == "multiplexed") {
       "${chip_root}/src/tracing",
       "${nlunit_test_root}:nlunit-test",
     ]
+
+    cflags = [
+      "-Wconversion",
+
+      # TODO: Fix compilation warnings and remove this
+      "-Wno-error=undef",
+      "-Wno-error=sign-compare",
+      "-Wno-error=cast-qual",
+    ]
   }
 }
