@@ -16,11 +16,11 @@
  */
 
 #include <assert.h>
+#include <gtest/gtest.h>
 #include <memory>
 
 #include <lib/support/CHIPMem.h>
 #include <lib/support/ThreadOperationalDataset.h>
-#include <lib/support/UnitTestRegistration.h>
 
 #include "platform/internal/CHIPDeviceLayerInternal.h"
 
@@ -52,7 +52,7 @@ void EventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg
     }
 }
 
-int TestThreadStackManager()
+TEST(TestThreadStackMgr, TestThreadStackManager)
 {
     chip::DeviceLayer::ThreadStackManagerImpl impl;
     chip::Thread::OperationalDataset dataset{};
@@ -78,8 +78,4 @@ int TestThreadStackManager()
 
     chip::DeviceLayer::PlatformMgrImpl().RunEventLoop();
     chip::Platform::MemoryShutdown();
-
-    return -1;
 }
-
-CHIP_REGISTER_TEST_SUITE(TestThreadStackManager);

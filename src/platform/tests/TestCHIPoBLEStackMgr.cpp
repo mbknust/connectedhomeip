@@ -19,7 +19,7 @@
 #include <assert.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <memory>
 
 #include "platform/PlatformManager.h"
@@ -56,5 +56,3 @@ int TestCHIPoBLEStackManager()
     chip::Platform::MemoryShutdown();
     return 0;
 }
-
-CHIP_REGISTER_TEST_SUITE(TestCHIPoBLEStackManager);

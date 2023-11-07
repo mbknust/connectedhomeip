@@ -46,6 +46,15 @@ if (chip_device_platform != "none" && chip_device_platform != "fake") {
       "${nlunit_test_root}:nlunit-test",
     ]
 
+    cflags = [
+      "-Wconversion",
+
+      # TODO: Fix compilation warnings and remove this
+      "-Wno-error=undef",
+      "-Wno-error=sign-compare",
+      "-Wno-error=cast-qual",
+    ]
+
     if (chip_mdns != "none" && chip_enable_dnssd_tests &&
         (chip_device_platform == "linux" || chip_device_platform == "darwin")) {
       test_sources += [ "TestDnssd.cpp" ]
