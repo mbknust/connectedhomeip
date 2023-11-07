@@ -23,8 +23,9 @@
 
 #include "messaging/ExchangeDelegate.h"
 #include "system/SystemClock.h"
+#include <gtest/gtest.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/UnitTestUtils.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeHolder.h>
@@ -344,9 +345,10 @@ CHIP_ERROR MockProtocolInitiator::OnMessageReceived(ExchangeContext * ec, const 
     return err;
 }
 
-void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
+TEST(TestExchangeHolder, TestExchangeHolder)
 {
-    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
+    static TestContext ctx;
+    ASSERT_EQ(ctx.Init(), CHIP_NO_ERROR);
 
     gCtx = &ctx;
 
@@ -370,10 +372,10 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -393,7 +395,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            EXPECT_TRUE(err != CHIP_NO_ERROR);
         }
 
         //
@@ -401,7 +403,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
         // flush any pending messages in the queue.
         //
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -421,7 +423,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            EXPECT_TRUE(err != CHIP_NO_ERROR);
         }
 
         //
@@ -429,7 +431,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
         // flush any pending messages in the queue.
         //
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -450,7 +452,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            EXPECT_TRUE(err != CHIP_NO_ERROR);
         }
 
         //
@@ -458,7 +460,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
         // flush any pending messages in the queue.
         //
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -478,7 +480,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
         }
 
         //
@@ -486,7 +488,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
         // flush any pending messages in the queue.
         //
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -506,12 +508,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kHoldMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -533,12 +535,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kErrMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -558,12 +560,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kExpireSessionBeforeMsg2Send);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -584,12 +586,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
                                             MockProtocolResponder::BehaviorModifier::kExpireSessionAfterMsg2Send);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -609,12 +611,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -634,12 +636,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+            EXPECT_TRUE(err != CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -662,12 +664,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -689,12 +691,12 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -715,7 +717,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kExpireSessionAfterMsg3Receive);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
 
@@ -734,7 +736,7 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
                                             [&]() { return ctx.GetExchangeManager().GetNumActiveExchanges() == 0; });
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -754,18 +756,18 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder(MockProtocolResponder::BehaviorModifier::kHoldMsg2);
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
 
             err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
         ctx.DrainAndServiceIO();
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
 
     //
@@ -788,52 +790,20 @@ void TestExchangeHolder(nlTestSuite * inSuite, void * inContext)
             MockProtocolResponder responder;
 
             auto err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
 
             err = initiator.StartInteraction(sessionHandle);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+            EXPECT_TRUE(err == CHIP_NO_ERROR);
 
             ctx.DrainAndServiceIO();
         }
 
-        NL_TEST_ASSERT(inSuite, ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
+        EXPECT_TRUE(ctx.GetExchangeManager().GetNumActiveExchanges() == 0);
     }
+
+    ctx.Shutdown();
 }
-
-// Test Suite
-
-/**
- *  Test Suite that lists all the test functions.
- */
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestExchangeHolder", TestExchangeHolder),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "Test-TestExchangeHolder",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
 
 } // anonymous namespace
-
-/**
- *  Main
- */
-int TestExchangeHolder()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestExchangeHolder);

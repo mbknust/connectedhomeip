@@ -64,7 +64,13 @@ chip_test_suite("tests") {
     }
   }
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+  ]
 
   public_deps = [
     ":helpers",

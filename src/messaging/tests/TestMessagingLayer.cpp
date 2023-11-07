@@ -26,7 +26,7 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
@@ -36,8 +36,8 @@
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 
+#include <gtest/gtest.h>
 #include <nlbyteorder.h>
-#include <nlunit-test.h>
 
 #include <errno.h>
 #include <utility>
@@ -78,6 +78,17 @@ public:
     bool IsOnResponseTimeoutCalled = false;
 };
 
+class TestMessagingLayer : public ::testing::Test
+{
+public: // protected
+    static TestContext ctx;
+
+    static void SetUpTestSuite() { ASSERT_EQ(ctx.Init(), CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { ctx.Shutdown(); }
+};
+
+TestContext TestMessagingLayer::ctx;
+
 /**
  * Tests sending exchange message with Success:
  *
@@ -87,15 +98,13 @@ public:
  *      - Confirm the message is sent successfully
  *      - Observe DUT response timeout with no response
  */
-void CheckExchangeOutgoingMessagesSuccess(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestMessagingLayer, CheckExchangeOutgoingMessagesSuccess)
 {
-    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
-
     // create solicited exchange
     MockAppDelegate mockSolicitedAppDelegate;
     ExchangeContext * ec = ctx.NewExchangeToAlice(&mockSolicitedAppDelegate);
 
-    NL_TEST_ASSERT(inSuite, ec != nullptr);
+    EXPECT_TRUE(ec != nullptr);
     ec->SetResponseTimeout(kMessageTimeout);
 
     CHIP_ERROR err = ec->SendMessage(Echo::MsgType::EchoRequest, System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize),
@@ -104,8 +113,8 @@ void CheckExchangeOutgoingMessagesSuccess(nlTestSuite * inSuite, void * inContex
     // Wait for the initial message to fail (should take 330-413ms)
     ctx.GetIOContext().DriveIOUntil(500_ms32, [&] { return mockSolicitedAppDelegate.IsOnMessageReceivedCalled; });
 
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, mockSolicitedAppDelegate.IsOnResponseTimeoutCalled);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(mockSolicitedAppDelegate.IsOnResponseTimeoutCalled);
 }
 
 /**
@@ -118,15 +127,13 @@ void CheckExchangeOutgoingMessagesSuccess(nlTestSuite * inSuite, void * inContex
  *      - Confirm the message is sent with failure
  *      - Confirm the DUT response timeout timer is cancelled
  */
-void CheckExchangeOutgoingMessagesFail(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestMessagingLayer, CheckExchangeOutgoingMessagesFail)
 {
-    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
-
     // create solicited exchange
     MockAppDelegate mockSolicitedAppDelegate;
     ExchangeContext * ec = ctx.NewExchangeToAlice(&mockSolicitedAppDelegate);
 
-    NL_TEST_ASSERT(inSuite, ec != nullptr);
+    EXPECT_TRUE(ec != nullptr);
     ec->SetResponseTimeout(kMessageTimeout);
 
     chip::FaultInjection::GetManager().FailAtFault(chip::FaultInjection::kFault_DropOutgoingUDPMsg, 0, 1);
@@ -137,44 +144,9 @@ void CheckExchangeOutgoingMessagesFail(nlTestSuite * inSuite, void * inContext)
     // Wait for the initial message to fail (should take 330-413ms)
     ctx.GetIOContext().DriveIOUntil(500_ms32, [&] { return mockSolicitedAppDelegate.IsOnMessageReceivedCalled; });
 
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, !mockSolicitedAppDelegate.IsOnResponseTimeoutCalled);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
+    EXPECT_TRUE(!mockSolicitedAppDelegate.IsOnResponseTimeoutCalled);
     ec->Close();
 }
 
-// Test Suite
-
-/**
- *  Test Suite that lists all the test functions.
- */
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("Test MessagingLayer::ExchangeOutgoingMessagesSuccess", CheckExchangeOutgoingMessagesSuccess),
-    NL_TEST_DEF("Test MessagingLayer::ExchangeOutgoingMessagesFail", CheckExchangeOutgoingMessagesFail),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "Test-CHIP-MessagingLayer",
-    &sTests[0],
-    TestContext::Initialize,
-    TestContext::Finalize
-};
-// clang-format on
-
 } // namespace
-
-/**
- *  Main
- */
-int TestMessagingLayer()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestMessagingLayer);
