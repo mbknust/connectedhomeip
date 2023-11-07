@@ -33,9 +33,8 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 #include "CHIPCert_error_test_vectors.h"
 #include "CHIPCert_test_vectors.h"
@@ -162,7 +161,14 @@ static void ClearTimeSource(ValidationContext & validContext)
     validContext.mEffectiveTime = EffectiveTime{};
 }
 
-static void TestChipCert_ChipToX509(nlTestSuite * inSuite, void * inContext)
+class TestChipCert : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
+TEST_F(TestChipCert, ChipToX509)
 {
     CHIP_ERROR err;
     ByteSpan inCert;
@@ -174,23 +180,23 @@ static void TestChipCert_ChipToX509(nlTestSuite * inSuite, void * inContext)
         uint8_t certType = gTestCerts[i];
 
         err = GetTestCert(certType, sNullLoadFlag, inCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         err = GetTestCert(certType, sDerFormFlag, expectedOutCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         MutableByteSpan outCert(outCertBuf);
         err = ConvertChipCertToX509Cert(inCert, outCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, expectedOutCert.data_equal(outCert));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(expectedOutCert.data_equal(outCert));
     }
 
     // Error Case:
     MutableByteSpan outCert(outCertBuf);
     err = ConvertChipCertToX509Cert(sTestCert_Node01_01_Err01_Chip, outCert);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_TLV_TAG);
+    EXPECT_TRUE(err == CHIP_ERROR_INVALID_TLV_TAG);
 }
 
-static void TestChipCert_ChipToX509_ErrorCases(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ChipToX509_ErrorCases)
 {
     CHIP_ERROR err;
     uint8_t outCertBuf[kMaxDERCertLength];
@@ -200,22 +206,22 @@ static void TestChipCert_ChipToX509_ErrorCases(nlTestSuite * inSuite, void * inC
         MutableByteSpan outCert(outCertBuf);
 
         err = ConvertChipCertToX509Cert(chipCert, outCert);
-        NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+        EXPECT_TRUE(err != CHIP_NO_ERROR);
     }
 }
 
-static void TestChipCert_ChipCertLoad_ErrorCases(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ChipCertLoad_ErrorCases)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
 
     err = certSet.Init(1);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     for (auto chipCert : gTestCert_ChipCertLoad_ErrorCases)
     {
         err = certSet.LoadCert(chipCert, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+        EXPECT_TRUE(err != CHIP_NO_ERROR);
 
         certSet.Clear();
     }
@@ -223,34 +229,34 @@ static void TestChipCert_ChipCertLoad_ErrorCases(nlTestSuite * inSuite, void * i
     certSet.Release();
 }
 
-static void TestChipCert_ValidateChipRCAC_ErrorCases(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ValidateChipRCAC_ErrorCases)
 {
     CHIP_ERROR err;
 
     for (auto chipCert : gTestCert_ValidateChipRCAC_ErrorCases)
     {
         err = ValidateChipRCAC(chipCert);
-        NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+        EXPECT_TRUE(err != CHIP_NO_ERROR);
     }
 }
 
-static void TestChipCert_GetCertType_ErrorCases(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GetCertType_ErrorCases)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
 
     err = certSet.Init(1);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     for (auto chipCert : gTestCert_GetCertType_ErrorCases)
     {
         CertType certType;
 
         err = certSet.LoadCert(chipCert, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = certSet.GetCertSet()->mSubjectDN.GetCertType(certType);
-        NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR || certType == CertType::kNotSpecified);
+        EXPECT_TRUE(err != CHIP_NO_ERROR || certType == CertType::kNotSpecified);
 
         certSet.Clear();
     }
@@ -258,7 +264,7 @@ static void TestChipCert_GetCertType_ErrorCases(nlTestSuite * inSuite, void * in
     certSet.Release();
 }
 
-static void TestChipCert_X509ToChip(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, X509ToChip)
 {
     CHIP_ERROR err;
     ByteSpan inCert;
@@ -270,18 +276,18 @@ static void TestChipCert_X509ToChip(nlTestSuite * inSuite, void * inContext)
         uint8_t certType = gTestCerts[i];
 
         err = GetTestCert(certType, sDerFormFlag, inCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         err = GetTestCert(certType, sNullLoadFlag, expectedOutCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         MutableByteSpan outCert(outCertBuf);
         err = ConvertX509CertToChipCert(inCert, outCert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, expectedOutCert.data_equal(outCert));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(expectedOutCert.data_equal(outCert));
     }
 }
 
-static void TestChipCert_X509ToChip_ErrorCases(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, X509ToChip_ErrorCases)
 {
     CHIP_ERROR err;
     uint8_t outCertBuf[kMaxCHIPCertLength];
@@ -291,11 +297,11 @@ static void TestChipCert_X509ToChip_ErrorCases(nlTestSuite * inSuite, void * inC
         MutableByteSpan outCert(outCertBuf);
 
         err = ConvertX509CertToChipCert(derCert, outCert);
-        NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+        EXPECT_TRUE(err != CHIP_NO_ERROR);
     }
 }
 
-static void TestChipCert_ChipDN(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ChipDN)
 {
     const static char noc_rdn[]     = "Test NOC";
     const static char noc_rdn2[]    = "John";
@@ -304,51 +310,51 @@ static void TestChipCert_ChipDN(nlTestSuite * inSuite, void * inContext)
     ChipDN chip_dn;
     CertType certType = CertType::kFirmwareSigning; // Start with non-default value
 
-    NL_TEST_ASSERT(inSuite, chip_dn.IsEmpty());
-    NL_TEST_ASSERT(inSuite, chip_dn.RDNCount() == 0);
-    NL_TEST_ASSERT(inSuite, chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.IsEmpty() == true);
-    NL_TEST_ASSERT(inSuite, certType == CertType::kNotSpecified);
+    EXPECT_TRUE(chip_dn.IsEmpty());
+    EXPECT_TRUE(chip_dn.RDNCount() == 0);
+    EXPECT_TRUE(chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.IsEmpty() == true);
+    EXPECT_TRUE(certType == CertType::kNotSpecified);
 
-    NL_TEST_ASSERT(inSuite, chip_dn.AddAttribute_CommonName(CharSpan(noc_rdn, strlen(noc_rdn)), false) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.AddAttribute_MatterNodeId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.AddAttribute_GivenName(CharSpan(noc_rdn2, strlen(noc_rdn2)), true) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.AddCATs(noc_cats) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.RDNCount() == 5);
+    EXPECT_TRUE(chip_dn.AddAttribute_CommonName(CharSpan(noc_rdn, strlen(noc_rdn)), false) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.AddAttribute_MatterNodeId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.AddAttribute_GivenName(CharSpan(noc_rdn2, strlen(noc_rdn2)), true) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.AddCATs(noc_cats) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.RDNCount() == 5);
 
-    NL_TEST_ASSERT(inSuite, chip_dn.AddAttribute_GivenName(CharSpan(noc_rdn2, strlen(noc_rdn2)), true) == CHIP_ERROR_NO_MEMORY);
-    NL_TEST_ASSERT(inSuite, chip_dn.RDNCount() == 5);
+    EXPECT_TRUE(chip_dn.AddAttribute_GivenName(CharSpan(noc_rdn2, strlen(noc_rdn2)), true) == CHIP_ERROR_NO_MEMORY);
+    EXPECT_TRUE(chip_dn.RDNCount() == 5);
 
-    NL_TEST_ASSERT(inSuite, chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certType == CertType::kNode);
+    EXPECT_TRUE(chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certType == CertType::kNode);
 
     uint64_t certId;
-    NL_TEST_ASSERT(inSuite, chip_dn.GetCertChipId(certId) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certId == 0xAAAABBBBCCCCDDDD);
+    EXPECT_TRUE(chip_dn.GetCertChipId(certId) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certId == 0xAAAABBBBCCCCDDDD);
 
     uint64_t fabricId;
-    NL_TEST_ASSERT(inSuite, chip_dn.GetCertFabricId(fabricId) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, fabricId == 0xFAB00000FAB00001);
+    EXPECT_TRUE(chip_dn.GetCertFabricId(fabricId) == CHIP_NO_ERROR);
+    EXPECT_TRUE(fabricId == 0xFAB00000FAB00001);
 
     chip_dn.Clear();
-    NL_TEST_ASSERT(inSuite, chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, chip_dn.IsEmpty() == true);
-    NL_TEST_ASSERT(inSuite, certType == CertType::kNotSpecified);
+    EXPECT_TRUE(chip_dn.GetCertType(certType) == CHIP_NO_ERROR);
+    EXPECT_TRUE(chip_dn.IsEmpty() == true);
+    EXPECT_TRUE(certType == CertType::kNotSpecified);
 
     CATValues noc_cats2;
     chip::CATValues::Serialized serializedCATs;
-    NL_TEST_ASSERT(inSuite, noc_cats.Serialize(serializedCATs) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_cats2.Deserialize(serializedCATs) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, memcmp(&noc_cats, &noc_cats2, chip::CATValues::kSerializedLength) == 0);
+    EXPECT_TRUE(noc_cats.Serialize(serializedCATs) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_cats2.Deserialize(serializedCATs) == CHIP_NO_ERROR);
+    EXPECT_TRUE(memcmp(&noc_cats, &noc_cats2, chip::CATValues::kSerializedLength) == 0);
 
     CATValues noc_cats3 = { { 0xABCD0001, 0xFFEEAA00, 0x0001F012 } };
-    NL_TEST_ASSERT(inSuite, noc_cats3.Serialize(serializedCATs) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_cats2.Deserialize(serializedCATs) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, memcmp(&noc_cats3, &noc_cats2, chip::CATValues::kSerializedLength) == 0);
+    EXPECT_TRUE(noc_cats3.Serialize(serializedCATs) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_cats2.Deserialize(serializedCATs) == CHIP_NO_ERROR);
+    EXPECT_TRUE(memcmp(&noc_cats3, &noc_cats2, chip::CATValues::kSerializedLength) == 0);
 }
 
-static void TestChipCert_CertValidation(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertValidation)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
@@ -511,29 +517,28 @@ static void TestChipCert_CertValidation(nlTestSuite * inSuite, void * inContext)
     {
         const ChipCertificateData * resultCert = nullptr;
         err                                    = certSet.Init(kMaxCertsPerTestCase);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         for (auto inputCert : testCase.InputCerts)
         {
             if (inputCert.Type != TestCert::kNone)
             {
                 err = LoadTestCert(certSet, inputCert.Type, inputCert.LoadFlags, inputCert.DecodeFlags);
-                NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+                EXPECT_TRUE(err == CHIP_NO_ERROR);
             }
         }
         // Make sure the test case is valid.
-        NL_TEST_ASSERT(inSuite, testCase.mSubjectCertIndex >= 0 && testCase.mSubjectCertIndex < certSet.GetCertCount());
+        EXPECT_TRUE(testCase.mSubjectCertIndex >= 0 && testCase.mSubjectCertIndex < certSet.GetCertCount());
         if (testCase.mExpectedResult == CHIP_NO_ERROR)
         {
-            NL_TEST_ASSERT(inSuite, testCase.mExpectedCertIndex >= 0 && testCase.mExpectedCertIndex < certSet.GetCertCount());
-            NL_TEST_ASSERT(inSuite,
-                           testCase.mExpectedTrustAnchorIndex >= 0 && testCase.mExpectedTrustAnchorIndex < certSet.GetCertCount());
+            EXPECT_TRUE(testCase.mExpectedCertIndex >= 0 && testCase.mExpectedCertIndex < certSet.GetCertCount());
+            EXPECT_TRUE(testCase.mExpectedTrustAnchorIndex >= 0 && testCase.mExpectedTrustAnchorIndex < certSet.GetCertCount());
         }
 
         // Initialize the validation context.
         validContext.Reset();
         err = SetCurrentTime(validContext, 2021, 1, 1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
         validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
         validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
@@ -545,16 +550,16 @@ static void TestChipCert_CertValidation(nlTestSuite * inSuite, void * inContext)
 
         // Invoke the FindValidCert() method (the method being tested).
         err = certSet.FindValidCert(subjectDN, subjectKeyId, validContext, &resultCert);
-        NL_TEST_ASSERT(inSuite, err == testCase.mExpectedResult);
+        EXPECT_TRUE(err == testCase.mExpectedResult);
 
         // If the test case is expected to be successful...
         if (err == CHIP_NO_ERROR)
         {
             // Verify that the method found the correct certificate.
-            NL_TEST_ASSERT(inSuite, resultCert == &certSet.GetCertSet()[testCase.mExpectedCertIndex]);
+            EXPECT_TRUE(resultCert == &certSet.GetCertSet()[testCase.mExpectedCertIndex]);
 
             // Verify that the method selected the correct trust anchor.
-            NL_TEST_ASSERT(inSuite, validContext.mTrustAnchor == &certSet.GetCertSet()[testCase.mExpectedTrustAnchorIndex]);
+            EXPECT_TRUE(validContext.mTrustAnchor == &certSet.GetCertSet()[testCase.mExpectedTrustAnchorIndex]);
         }
 
         // Clear the certificate set.
@@ -562,17 +567,17 @@ static void TestChipCert_CertValidation(nlTestSuite * inSuite, void * inContext)
     }
 }
 
-static void TestChipCert_CertValidTime(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertValidTime)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
     ValidationContext validContext;
 
     err = certSet.Init(kStandardCertsCount);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     err = LoadTestCertSet01(certSet);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     validContext.Reset();
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
@@ -587,248 +592,248 @@ static void TestChipCert_CertValidTime(nlTestSuite * inSuite, void * inContext)
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Current time before certificate validity period.
     err = SetCurrentTime(validContext, 2020, 1, 3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
 
     // Current time 1 second before validity period.
     err = SetCurrentTime(validContext, 2020, 10, 15, 14, 23, 42);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
 
     // Current time 1st second of validity period.
     err = SetCurrentTime(validContext, 2020, 10, 15, 14, 23, 43);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Current time within validity period.
     err = SetCurrentTime(validContext, 2022, 02, 23, 12, 30, 01);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Current time at last second of validity period.
     err = SetCurrentTime(validContext, 2040, 10, 15, 14, 23, 42);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Current time at 1 second after end of certificate validity period.
     err = SetCurrentTime(validContext, 2040, 10, 15, 14, 23, 43);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
 
     // Current time after end of certificate validity period.
     err = SetCurrentTime(validContext, 2042, 4, 25, 0, 0, 0);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
 
     // Last known good time before certificate validity period.
     // We can't invalidate based on NotBefore with Last Known Good Time.
     // Hence, we expect CHIP_NO_ERROR.
     err = SetLastKnownGoodTime(validContext, 2020, 1, 3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Last known good time 1 second before certificate validity period.
     // We can't invalidate based on NotBefore with Last Known Good Time.
     // Hence, we expect CHIP_NO_ERROR.
     err = SetLastKnownGoodTime(validContext, 2020, 10, 15, 14, 23, 42);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Last Known Good Time 1st second of validity period.
     err = SetLastKnownGoodTime(validContext, 2020, 10, 15, 14, 23, 43);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Last Known Good Time within validity period.
     err = SetLastKnownGoodTime(validContext, 2022, 02, 23, 12, 30, 01);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Last Known Good Time at last second of validity period.
     err = SetLastKnownGoodTime(validContext, 2040, 10, 15, 14, 23, 42);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Last Known Good Time at 1 second after end of certificate validity period.
     err = SetLastKnownGoodTime(validContext, 2040, 10, 15, 14, 23, 43);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
 
     // Last Known Good Time after end of certificate validity period.
     err = SetLastKnownGoodTime(validContext, 2042, 4, 25, 0, 0, 0);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictCertificateValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
 
     certSet.Release();
 }
 
-static void TestChipCert_ValidateChipRCAC(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ValidateChipRCAC)
 {
     struct RCACTestCase
     {
@@ -854,8 +859,8 @@ static void TestChipCert_ValidateChipRCAC(nlTestSuite * inSuite, void * inContex
     for (auto & testCase : sRCACTestCases)
     {
         ByteSpan cert;
-        NL_TEST_ASSERT(inSuite, GetTestCert(testCase.Cert, sNullLoadFlag, cert) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, ValidateChipRCAC(cert) == testCase.mExpectedResult);
+        EXPECT_TRUE(GetTestCert(testCase.Cert, sNullLoadFlag, cert) == CHIP_NO_ERROR);
+        EXPECT_TRUE(ValidateChipRCAC(cert) == testCase.mExpectedResult);
     }
 }
 
@@ -883,7 +888,7 @@ public:
     }
 };
 
-static void TestChipCert_CertValidityPolicyInjection(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertValidityPolicyInjection)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
@@ -894,10 +899,10 @@ static void TestChipCert_CertValidityPolicyInjection(nlTestSuite * inSuite, void
     AlwaysRejectValidityPolicy alwaysRejectPolicy;
 
     err = certSet.Init(kStandardCertsCount);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     err = LoadTestCertSet01(certSet);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     validContext.Reset();
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
@@ -909,170 +914,170 @@ static void TestChipCert_CertValidityPolicyInjection(nlTestSuite * inSuite, void
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Curent time before certificate validity period.
     err = SetCurrentTime(validContext, 2020, 1, 3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_NOT_VALID_YET);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Last known good time before certificate validity period.
     err = SetLastKnownGoodTime(validContext, 2020, 1, 3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Current time during validity period
     err = SetCurrentTime(validContext, 2022, 02, 23, 12, 30, 01);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Last Known Good Time during validity period
     err = SetLastKnownGoodTime(validContext, 2022, 02, 23, 12, 30, 01);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Current time after end of certificate validity period.
     err = SetCurrentTime(validContext, 2042, 4, 25, 0, 0, 0);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     // Last Known Good Time after end of certificate validity period.
     err = SetLastKnownGoodTime(validContext, 2042, 4, 25, 0, 0, 0);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Default policy
     validContext.mValidityPolicy = nullptr;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Strict policy
     validContext.mValidityPolicy = &strictPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Last Known Good Time policy
     validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    EXPECT_TRUE(err == CHIP_ERROR_CERT_EXPIRED);
     // Always accept policy
     validContext.mValidityPolicy = &alwaysAcceptPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
     // Always reject policy
     validContext.mValidityPolicy = &alwaysRejectPolicy;
     err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    EXPECT_TRUE(err != CHIP_NO_ERROR);
 
     certSet.Release();
 }
 
-static void TestChipCert_CertUsage(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertUsage)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
@@ -1163,10 +1168,10 @@ static void TestChipCert_CertUsage(nlTestSuite * inSuite, void * inContext)
     size_t sNumUsageTestCases = ArraySize(sUsageTestCases);
 
     err = certSet.Init(certDataArray, ArraySize(certDataArray));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     err = LoadTestCertSet01(certSet);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     for (size_t i = 0; i < sNumUsageTestCases; i++)
     {
@@ -1175,16 +1180,16 @@ static void TestChipCert_CertUsage(nlTestSuite * inSuite, void * inContext)
         validContext.mRequiredKeyPurposes = sUsageTestCases[i].mRequiredKeyPurposes;
 
         err = SetCurrentTime(validContext, 2020, 10, 16);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = certSet.ValidateCert(&certSet.GetCertSet()[sUsageTestCases[i].mCertIndex], validContext);
-        NL_TEST_ASSERT(inSuite, err == sUsageTestCases[i].mExpectedResult);
+        EXPECT_TRUE(err == sUsageTestCases[i].mExpectedResult);
     }
 
     certSet.Release();
 }
 
-static void TestChipCert_CertType(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertType)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
@@ -1216,20 +1221,20 @@ static void TestChipCert_CertType(nlTestSuite * inSuite, void * inContext)
         CertType certType;
 
         err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, testCase.Cert, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = certSet.GetCertSet()->mSubjectDN.GetCertType(certType);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
-        NL_TEST_ASSERT(inSuite, certType == testCase.ExpectedCertType);
+        EXPECT_TRUE(certType == testCase.ExpectedCertType);
         certSet.Release();
     }
 }
 
-static void TestChipCert_CertId(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, CertId)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
@@ -1262,84 +1267,84 @@ static void TestChipCert_CertId(nlTestSuite * inSuite, void * inContext)
         uint64_t chipId;
 
         err = certSet.Init(certData, 1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, testCase.Cert, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = certSet.GetCertSet()->mSubjectDN.GetCertChipId(chipId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
-        NL_TEST_ASSERT(inSuite, chipId == testCase.ExpectedCertId);
+        EXPECT_TRUE(chipId == testCase.ExpectedCertId);
         certSet.Release();
     }
 }
 
-static void TestChipCert_LoadDuplicateCerts(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, LoadDuplicateCerts)
 {
     CHIP_ERROR err;
     ChipCertificateSet certSet;
     ValidationContext validContext;
 
     err = certSet.Init(kStandardCertsCount);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     // Let's load two distinct certificates, and make sure cert count is 2
     err = LoadTestCert(certSet, TestCert::kRoot01, sNullLoadFlag, sTrustAnchorFlag);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     err = LoadTestCert(certSet, TestCert::kICA01, sNullLoadFlag, sGenTBSHashFlag);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.GetCertCount() == 2);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.GetCertCount() == 2);
 
     // Let's load a previously loaded cert and make sure cert count is still 2
     err = LoadTestCert(certSet, TestCert::kRoot01, sNullLoadFlag, sTrustAnchorFlag);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.GetCertCount() == 2);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.GetCertCount() == 2);
 
     // Let's load the other previously loaded cert and make sure cert count is still 2
     err = LoadTestCert(certSet, TestCert::kICA01, sNullLoadFlag, sGenTBSHashFlag);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.GetCertCount() == 2);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.GetCertCount() == 2);
 
     // Let's load a new cert and make sure cert count updates to 3
     err = LoadTestCert(certSet, TestCert::kNode01_01, sNullLoadFlag, sGenTBSHashFlag);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.GetCertCount() == 3);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.GetCertCount() == 3);
 }
 
-static void TestChipCert_GenerateRootCert(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GenerateRootCert)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     uint8_t signed_cert[kMaxDERCertLength];
 
     ChipCertificateData certData;
 
     ChipDN root_dn;
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
 
     X509CertRequestParams root_params = { 1234, 631161876, 729942000, root_dn, root_dn };
     MutableByteSpan signed_cert_span(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, signed_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, signed_cert_span) == CHIP_NO_ERROR);
 
     uint8_t outCertBuf[kMaxCHIPCertLength];
     MutableByteSpan outCert(outCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test with FutureExtension
     X509CertRequestParams root_params2 = { 1234, 631161876, 729942000, root_dn, root_dn, kSubjectAltNameAsFutureExt };
     MutableByteSpan signed_cert_span2(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params2, keypair, signed_cert_span2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params2, keypair, signed_cert_span2) == CHIP_NO_ERROR);
     outCert = MutableByteSpan(outCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test with no defined notAfter time.
     {
@@ -1350,41 +1355,41 @@ static void TestChipCert_GenerateRootCert(nlTestSuite * inSuite, void * inContex
                                                .IssuerDN      = root_dn };
         MutableByteSpan signed_cert_span_no_expiry(signed_cert);
 
-        NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params3, keypair, signed_cert_span_no_expiry) == CHIP_NO_ERROR);
+        EXPECT_TRUE(NewRootX509Cert(root_params3, keypair, signed_cert_span_no_expiry) == CHIP_NO_ERROR);
         outCert = MutableByteSpan(outCertBuf);
 
-        NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span_no_expiry, outCert) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, certData.mNotAfterTime == kNullCertTime);
+        EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span_no_expiry, outCert) == CHIP_NO_ERROR);
+        EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+        EXPECT_TRUE(certData.mNotAfterTime == kNullCertTime);
     }
 
     // Test error case: root cert subject provided ICA OID Attribute.
     root_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, root_params.SubjectDN.AddAttribute_MatterICACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_params.SubjectDN.AddAttribute_MatterICACId(0xabcdabcd) == CHIP_NO_ERROR);
     root_params.IssuerDN.Clear();
-    NL_TEST_ASSERT(inSuite, root_params.IssuerDN.AddAttribute_MatterICACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_params.IssuerDN.AddAttribute_MatterICACId(0xabcdabcd) == CHIP_NO_ERROR);
     MutableByteSpan signed_cert_span1(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
 
     // Test error case: root cert provided different subject and issuer DNs.
     root_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, root_params.SubjectDN.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_params.SubjectDN.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
     root_params.IssuerDN.Clear();
-    NL_TEST_ASSERT(inSuite, root_params.IssuerDN.AddAttribute_MatterRCACId(0xffffeeee) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(root_params.IssuerDN.AddAttribute_MatterRCACId(0xffffeeee) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
 
     // Test that serial number cannot be negative
     root_params.IssuerDN.Clear();
-    NL_TEST_ASSERT(inSuite, root_params.IssuerDN.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_params.IssuerDN.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
     root_params.SerialNumber = -1;
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-static void TestChipCert_GenerateRootFabCert(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GenerateRootFabCert)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     uint8_t signed_cert[kMaxDERCertLength];
 
@@ -1394,24 +1399,24 @@ static void TestChipCert_GenerateRootFabCert(nlTestSuite * inSuite, void * inCon
     MutableByteSpan outCert(outCertBuf);
 
     ChipDN root_dn;
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterFabricId(0xabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterRCACId(0xabcdabcd) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterFabricId(0xabcd) == CHIP_NO_ERROR);
 
     X509CertRequestParams root_params_fabric = { 1234, 631161876, 729942000, root_dn, root_dn };
 
     MutableByteSpan signed_cert_span(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params_fabric, keypair, signed_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params_fabric, keypair, signed_cert_span) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 }
 
-static void TestChipCert_GenerateICACert(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GenerateICACert)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     uint8_t signed_cert[kMaxDERCertLength];
 
@@ -1421,51 +1426,49 @@ static void TestChipCert_GenerateICACert(nlTestSuite * inSuite, void * inContext
     ChipCertificateData certData;
 
     ChipDN ica_dn;
-    NL_TEST_ASSERT(inSuite, ica_dn.AddAttribute_MatterICACId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_dn.AddAttribute_MatterICACId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
     ChipDN issuer_dn;
-    NL_TEST_ASSERT(inSuite, issuer_dn.AddAttribute_MatterRCACId(0x43215678FEDCABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(issuer_dn.AddAttribute_MatterRCACId(0x43215678FEDCABCD) == CHIP_NO_ERROR);
 
     X509CertRequestParams ica_params = { 1234, 631161876, 729942000, ica_dn, issuer_dn };
     P256Keypair ica_keypair;
-    NL_TEST_ASSERT(inSuite, ica_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan signed_cert_span(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test with FutureExtension
     X509CertRequestParams ica_params2 = { 1234, 631161876, 729942000, ica_dn, issuer_dn, kSubjectAltNameAsFutureExt };
     MutableByteSpan signed_cert_span2(signed_cert);
-    NL_TEST_ASSERT(inSuite, NewICAX509Cert(ica_params2, ica_keypair.Pubkey(), keypair, signed_cert_span2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewICAX509Cert(ica_params2, ica_keypair.Pubkey(), keypair, signed_cert_span2) == CHIP_NO_ERROR);
     outCert = MutableByteSpan(outCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test error case: ICA cert subject provided a node ID attribute
     ica_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, ica_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, ica_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
     MutableByteSpan signed_cert_span1(signed_cert);
-    NL_TEST_ASSERT(inSuite,
-                   NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
 
     // Test that serial number cannot be negative
     ica_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, ica_params.SubjectDN.AddAttribute_MatterICACId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_params.SubjectDN.AddAttribute_MatterICACId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
     ica_params.SerialNumber = -1;
-    NL_TEST_ASSERT(inSuite,
-                   NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, signed_cert_span1) == CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-static void TestChipCert_GenerateNOCRoot(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GenerateNOCRoot)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     uint8_t signed_cert[kMaxDERCertLength];
 
@@ -1475,68 +1478,63 @@ static void TestChipCert_GenerateNOCRoot(nlTestSuite * inSuite, void * inContext
     ChipCertificateData certData;
 
     ChipDN noc_dn;
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
     ChipDN issuer_dn;
-    NL_TEST_ASSERT(inSuite, issuer_dn.AddAttribute_MatterRCACId(0x8888999944442222) == CHIP_NO_ERROR);
+    EXPECT_TRUE(issuer_dn.AddAttribute_MatterRCACId(0x8888999944442222) == CHIP_NO_ERROR);
 
     X509CertRequestParams noc_params = { 123456, 631161876, 729942000, noc_dn, issuer_dn };
     P256Keypair noc_keypair;
-    NL_TEST_ASSERT(inSuite, noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan signed_cert_span(signed_cert, sizeof(signed_cert));
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test with FutureExtension
     X509CertRequestParams noc_params2 = { 123456, 631161876, 729942000, noc_dn, issuer_dn, kSubjectAltNameAsFutureExt };
     MutableByteSpan signed_cert_span2(signed_cert);
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params2, noc_keypair.Pubkey(), keypair, signed_cert_span2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params2, noc_keypair.Pubkey(), keypair, signed_cert_span2) == CHIP_NO_ERROR);
     outCert = MutableByteSpan(outCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span2, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 
     // Test error case: NOC cert subject doesn't have NodeId attribute
     noc_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, noc_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
 
     MutableByteSpan signed_cert_span1(signed_cert, sizeof(signed_cert));
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
-                       CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
+                CHIP_ERROR_INVALID_ARGUMENT);
 
     // Test error case: NOC cert subject doesn't have fabric ID attribute
     noc_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, noc_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
-                       CHIP_ERROR_WRONG_CERT_DN);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
+                CHIP_ERROR_WRONG_CERT_DN);
 
     // Test error case: issuer cert DN type is Node certificate
     noc_params.SubjectDN.Clear();
-    NL_TEST_ASSERT(inSuite, noc_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.SubjectDN.AddAttribute_MatterNodeId(0xABCDABCDABCDABCD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.SubjectDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
     noc_params.IssuerDN.Clear();
-    NL_TEST_ASSERT(inSuite, noc_params.IssuerDN.AddAttribute_MatterNodeId(0x8888999944442222) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_params.IssuerDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.IssuerDN.AddAttribute_MatterNodeId(0x8888999944442222) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_params.IssuerDN.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
-                       CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span1) ==
+                CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-static void TestChipCert_GenerateNOCICA(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, GenerateNOCICA)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     uint8_t signed_cert[kMaxDERCertLength];
 
@@ -1553,78 +1551,75 @@ static void TestChipCert_GenerateNOCICA(nlTestSuite * inSuite, void * inContext)
     const static char noc_name_rdn[]      = "Smith";
 
     ChipDN noc_dn;
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_CommonName(CharSpan(noc_cn_rdn, strlen(noc_cn_rdn)), false) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterNodeId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite,
-                   noc_dn.AddAttribute_GivenName(CharSpan(noc_givenname_rdn, strlen(noc_givenname_rdn)), true) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_Name(CharSpan(noc_name_rdn, strlen(noc_name_rdn)), true) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_CommonName(CharSpan(noc_cn_rdn, strlen(noc_cn_rdn)), false) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterNodeId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_GivenName(CharSpan(noc_givenname_rdn, strlen(noc_givenname_rdn)), true) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_Name(CharSpan(noc_name_rdn, strlen(noc_name_rdn)), true) == CHIP_NO_ERROR);
 
     ChipDN ica_dn;
-    NL_TEST_ASSERT(inSuite, ica_dn.AddAttribute_MatterICACId(0x8888999944442222) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, ica_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_dn.AddAttribute_MatterICACId(0x8888999944442222) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_dn.AddAttribute_MatterFabricId(0xFAB00000FAB00001) == CHIP_NO_ERROR);
 
     X509CertRequestParams noc_params = { 12348765, 631161876, 729942000, noc_dn, ica_dn };
     P256Keypair noc_keypair;
-    NL_TEST_ASSERT(inSuite, noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan signed_cert_span(signed_cert);
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, signed_cert_span) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(signed_cert_span, outCert) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertChipCertToX509Cert(outCert, outCertDER) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, signed_cert_span.data_equal(outCertDER));
+    EXPECT_TRUE(ConvertChipCertToX509Cert(outCert, outCertDER) == CHIP_NO_ERROR);
+    EXPECT_TRUE(signed_cert_span.data_equal(outCertDER));
 
-    NL_TEST_ASSERT(inSuite, DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeChipCert(outCert, certData) == CHIP_NO_ERROR);
 }
 
-static void TestChipCert_VerifyGeneratedCerts(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, VerifyGeneratedCerts)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     static uint8_t root_cert[kMaxDERCertLength];
 
     ChipDN root_dn;
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterRCACId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterRCACId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
 
     X509CertRequestParams root_params = { 1234, 631161876, 729942000, root_dn, root_dn };
     MutableByteSpan root_cert_span(root_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, root_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, root_cert_span) == CHIP_NO_ERROR);
 
     static uint8_t ica_cert[kMaxDERCertLength];
 
     ChipDN ica_dn;
-    NL_TEST_ASSERT(inSuite, ica_dn.AddAttribute_MatterICACId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, ica_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_dn.AddAttribute_MatterICACId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
 
     X509CertRequestParams ica_params = { 12345, 631161876, 729942000, ica_dn, root_dn };
     P256Keypair ica_keypair;
-    NL_TEST_ASSERT(inSuite, ica_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ica_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan ica_cert_span(ica_cert);
-    NL_TEST_ASSERT(inSuite, NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, ica_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewICAX509Cert(ica_params, ica_keypair.Pubkey(), keypair, ica_cert_span) == CHIP_NO_ERROR);
 
     static uint8_t noc_cert[kMaxDERCertLength];
 
     ChipDN noc_dn;
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterNodeId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterNodeId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
 
     X509CertRequestParams noc_params = { 123456, 631161876, 729942000, noc_dn, ica_dn };
     P256Keypair noc_keypair;
-    NL_TEST_ASSERT(inSuite, noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan noc_cert_span(noc_cert, sizeof(noc_cert));
-    NL_TEST_ASSERT(inSuite,
-                   NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), ica_keypair, noc_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), ica_keypair, noc_cert_span) == CHIP_NO_ERROR);
 
     ChipCertificateSet certSet;
-    NL_TEST_ASSERT(inSuite, certSet.Init(3) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.Init(3) == CHIP_NO_ERROR);
 
     static uint8_t chipRootCertBuf[kMaxCHIPCertLength];
     static uint8_t chipICACertBuf[kMaxCHIPCertLength];
@@ -1633,19 +1628,19 @@ static void TestChipCert_VerifyGeneratedCerts(nlTestSuite * inSuite, void * inCo
     MutableByteSpan chipICACert(chipICACertBuf);
     MutableByteSpan chipNOCCert(chipNOCCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(root_cert_span, chipRootCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.LoadCert(chipRootCert, sTrustAnchorFlag) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(root_cert_span, chipRootCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.LoadCert(chipRootCert, sTrustAnchorFlag) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(ica_cert_span, chipICACert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.LoadCert(chipICACert, sGenTBSHashFlag) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(ica_cert_span, chipICACert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.LoadCert(chipICACert, sGenTBSHashFlag) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(noc_cert_span, chipNOCCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.LoadCert(chipNOCCert, sGenTBSHashFlag) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(noc_cert_span, chipNOCCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.LoadCert(chipNOCCert, sGenTBSHashFlag) == CHIP_NO_ERROR);
 
     ValidationContext validContext;
 
     validContext.Reset();
-    NL_TEST_ASSERT(inSuite, SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
@@ -1655,63 +1650,63 @@ static void TestChipCert_VerifyGeneratedCerts(nlTestSuite * inSuite, void * inCo
     const CertificateKeyId & subjectKeyId = certSet.GetCertSet()[2].mSubjectKeyId;
 
     const ChipCertificateData * resultCert = nullptr;
-    NL_TEST_ASSERT(inSuite, certSet.FindValidCert(subjectDN, subjectKeyId, validContext, &resultCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.FindValidCert(subjectDN, subjectKeyId, validContext, &resultCert) == CHIP_NO_ERROR);
 }
 
-static void TestChipCert_VerifyGeneratedCertsNoICA(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, VerifyGeneratedCertsNoICA)
 {
     // Generate a new keypair for cert signing
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     static uint8_t root_cert[kMaxDERCertLength];
 
     const static char root_cn_rdn[] = "Test Root Operational Cert";
 
     ChipDN root_dn;
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_CommonName(CharSpan(root_cn_rdn, strlen(root_cn_rdn)), false) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterRCACId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, root_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_CommonName(CharSpan(root_cn_rdn, strlen(root_cn_rdn)), false) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterRCACId(0xAAAABBBBCCCCDDDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(root_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
 
     X509CertRequestParams root_params = { 1234, 631161876, 729942000, root_dn, root_dn };
     MutableByteSpan root_cert_span(root_cert);
-    NL_TEST_ASSERT(inSuite, NewRootX509Cert(root_params, keypair, root_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewRootX509Cert(root_params, keypair, root_cert_span) == CHIP_NO_ERROR);
 
     static uint8_t noc_cert[kMaxDERCertLength];
 
     const static char noc_cn_rdn[] = "Test NOC";
 
     ChipDN noc_dn;
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_CommonName(CharSpan(noc_cn_rdn, strlen(noc_cn_rdn)), true) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterNodeId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, noc_dn.AddAttribute_MatterCASEAuthTag(0xABCD0010) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_CommonName(CharSpan(noc_cn_rdn, strlen(noc_cn_rdn)), true) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterNodeId(0xAABBCCDDAABBCCDD) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterFabricId(0xFAB0000000008888) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_dn.AddAttribute_MatterCASEAuthTag(0xABCD0010) == CHIP_NO_ERROR);
 
     X509CertRequestParams noc_params = { 1234, 631161876, 729942000, noc_dn, root_dn };
     P256Keypair noc_keypair;
-    NL_TEST_ASSERT(inSuite, noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(noc_keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
 
     MutableByteSpan noc_cert_span(noc_cert);
-    NL_TEST_ASSERT(inSuite, NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, noc_cert_span) == CHIP_NO_ERROR);
+    EXPECT_TRUE(NewNodeOperationalX509Cert(noc_params, noc_keypair.Pubkey(), keypair, noc_cert_span) == CHIP_NO_ERROR);
 
     ChipCertificateSet certSet;
-    NL_TEST_ASSERT(inSuite, certSet.Init(2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.Init(2) == CHIP_NO_ERROR);
 
     static uint8_t chipRootCertBuf[kMaxCHIPCertLength];
     static uint8_t chipNOCCertBuf[kMaxCHIPCertLength];
     MutableByteSpan chipRootCert(chipRootCertBuf);
     MutableByteSpan chipNOCCert(chipNOCCertBuf);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(root_cert_span, chipRootCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.LoadCert(chipRootCert, sTrustAnchorFlag) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(root_cert_span, chipRootCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.LoadCert(chipRootCert, sTrustAnchorFlag) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, ConvertX509CertToChipCert(noc_cert_span, chipNOCCert) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, certSet.LoadCert(chipNOCCert, sGenTBSHashFlag) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ConvertX509CertToChipCert(noc_cert_span, chipNOCCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.LoadCert(chipNOCCert, sGenTBSHashFlag) == CHIP_NO_ERROR);
 
     ValidationContext validContext;
 
     validContext.Reset();
-    NL_TEST_ASSERT(inSuite, SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
+    EXPECT_TRUE(SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
@@ -1721,10 +1716,10 @@ static void TestChipCert_VerifyGeneratedCertsNoICA(nlTestSuite * inSuite, void *
     const CertificateKeyId & subjectKeyId = certSet.GetCertSet()[1].mSubjectKeyId;
 
     const ChipCertificateData * resultCert = nullptr;
-    NL_TEST_ASSERT(inSuite, certSet.FindValidCert(subjectDN, subjectKeyId, validContext, &resultCert) == CHIP_NO_ERROR);
+    EXPECT_TRUE(certSet.FindValidCert(subjectDN, subjectKeyId, validContext, &resultCert) == CHIP_NO_ERROR);
 }
 
-static void TestChipCert_ExtractNodeIdFabricId(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ExtractNodeIdFabricId)
 {
     struct TestCase
     {
@@ -1756,14 +1751,14 @@ static void TestChipCert_ExtractNodeIdFabricId(nlTestSuite * inSuite, void * inC
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         NodeId nodeId;
         FabricId fabricId;
         err = ExtractNodeIdFabricIdFromOpCert(cert, &nodeId, &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, nodeId == testCase.ExpectedNodeId);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(nodeId == testCase.ExpectedNodeId);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
     }
 
     // Test node ID and fabric ID extraction from the parsed form.
@@ -1771,17 +1766,17 @@ static void TestChipCert_ExtractNodeIdFabricId(nlTestSuite * inSuite, void * inC
     for (auto & testCase : sTestCases)
     {
         CHIP_ERROR err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, testCase.Cert, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         NodeId nodeId;
         FabricId fabricId;
         err = ExtractNodeIdFabricIdFromOpCert(certSet.GetCertSet()[0], &nodeId, &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, nodeId == testCase.ExpectedNodeId);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(nodeId == testCase.ExpectedNodeId);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
         certSet.Release();
     }
 
@@ -1790,27 +1785,27 @@ static void TestChipCert_ExtractNodeIdFabricId(nlTestSuite * inSuite, void * inC
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         FabricId fabricId;
         err = ExtractFabricIdFromCert(cert, &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
     }
 
     // Test fabric ID extraction from the parsed form.
     for (auto & testCase : sTestCases)
     {
         CHIP_ERROR err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, testCase.Cert, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         FabricId fabricId;
         err = ExtractFabricIdFromCert(certSet.GetCertSet()[0], &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
         certSet.Release();
     }
 
@@ -1818,29 +1813,29 @@ static void TestChipCert_ExtractNodeIdFabricId(nlTestSuite * inSuite, void * inC
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(TestCert::kICA01, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         FabricId fabricId;
         err = ExtractFabricIdFromCert(cert, &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_NOT_FOUND);
+        EXPECT_TRUE(err == CHIP_ERROR_NOT_FOUND);
     }
 
     // Test extraction from the parsed form of ICA Cert that doesn't have FabricId.
     {
         CHIP_ERROR err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, TestCert::kICA01, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         FabricId fabricId;
         err = ExtractFabricIdFromCert(certSet.GetCertSet()[0], &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_NOT_FOUND);
+        EXPECT_TRUE(err == CHIP_ERROR_NOT_FOUND);
         certSet.Release();
     }
 }
 
-static void TestChipCert_ExtractOperationalDiscoveryId(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ExtractOperationalDiscoveryId)
 {
     struct TestCase
     {
@@ -1873,30 +1868,30 @@ static void TestChipCert_ExtractOperationalDiscoveryId(nlTestSuite * inSuite, vo
         ByteSpan noc;
         ByteSpan rcac;
         CHIP_ERROR err = GetTestCert(testCase.Noc, sNullLoadFlag, noc);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
         err = GetTestCert(testCase.Rcac, sNullLoadFlag, rcac);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         // Extract Node ID and Fabric ID from the leaf node certificate.
         NodeId nodeId;
         FabricId fabricId;
         err = ExtractNodeIdFabricIdFromOpCert(noc, &nodeId, &fabricId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, nodeId == testCase.ExpectedNodeId);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(nodeId == testCase.ExpectedNodeId);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
 
         // Extract Node ID, Fabric ID and Compressed Fabric ID from the
         // NOC and root certificate.
         CompressedFabricId compressedFabricId;
         err = ExtractNodeIdFabricIdCompressedFabricIdFromOpCerts(rcac, noc, compressedFabricId, fabricId, nodeId);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, compressedFabricId == testCase.ExpectedCompressedFabricId);
-        NL_TEST_ASSERT(inSuite, fabricId == testCase.ExpectedFabricId);
-        NL_TEST_ASSERT(inSuite, nodeId == testCase.ExpectedNodeId);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(compressedFabricId == testCase.ExpectedCompressedFabricId);
+        EXPECT_TRUE(fabricId == testCase.ExpectedFabricId);
+        EXPECT_TRUE(nodeId == testCase.ExpectedNodeId);
     }
 }
 
-static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ExtractAndValidateCATsFromOpCert)
 {
     struct TestCase
     {
@@ -1926,12 +1921,12 @@ static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite,
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         CATValues cats;
         err = ExtractCATsFromOpCert(cert, cats);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, memcmp(&cats, &testCase.ExpectedCATs, sizeof(cats)) == 0);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(memcmp(&cats, &testCase.ExpectedCATs, sizeof(cats)) == 0);
     }
 
     // Test extraction from the parsed form.
@@ -1939,15 +1934,15 @@ static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite,
     for (auto & testCase : sTestCases)
     {
         CHIP_ERROR err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, testCase.Cert, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         CATValues cats;
         err = ExtractCATsFromOpCert(certSet.GetCertSet()[0], cats);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, memcmp(&cats, &testCase.ExpectedCATs, sizeof(cats)) == 0);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(memcmp(&cats, &testCase.ExpectedCATs, sizeof(cats)) == 0);
 
         certSet.Release();
     }
@@ -1955,14 +1950,14 @@ static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite,
     // Error case: trying to extract CAT from Root Cert.
     {
         CHIP_ERROR err = certSet.Init(1);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         err = LoadTestCert(certSet, TestCert::kRoot01, sNullLoadFlag, sNullDecodeFlag);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         CATValues cats;
         err = ExtractCATsFromOpCert(certSet.GetCertSet()[0], cats);
-        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+        EXPECT_TRUE(err == CHIP_ERROR_INVALID_ARGUMENT);
 
         certSet.Release();
     }
@@ -1971,18 +1966,18 @@ static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite,
     {
         CATValues cats;
         CHIP_ERROR err = ExtractCATsFromOpCert(ByteSpan(sChipTest_NOC_Subject_CAT_Invalid_Cert_CHIP), cats);
-        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+        EXPECT_TRUE(err == CHIP_ERROR_INVALID_ARGUMENT);
     }
 
     // Error case: NOC with multiple versions of the same CAT tag.
     {
         CATValues cats;
         CHIP_ERROR err = ExtractCATsFromOpCert(ByteSpan(sChipTest_NOC_Subject_CAT_Twice_Cert_CHIP), cats);
-        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_WRONG_CERT_DN);
+        EXPECT_TRUE(err == CHIP_ERROR_WRONG_CERT_DN);
     }
 }
 
-static void TestChipCert_ExtractSubjectDNFromChipCert(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ExtractSubjectDNFromChipCert)
 {
     struct TestCase
     {
@@ -1991,29 +1986,28 @@ static void TestChipCert_ExtractSubjectDNFromChipCert(nlTestSuite * inSuite, voi
     };
 
     ChipDN expectedSubjectDN_Root01;
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Root01.AddAttribute_MatterRCACId(0xCACACACA00000001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Root01.AddAttribute_MatterRCACId(0xCACACACA00000001) == CHIP_NO_ERROR);
 
     ChipDN expectedSubjectDN_Root02;
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Root02.AddAttribute_MatterRCACId(0xCACACACA00000002) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Root02.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Root02.AddAttribute_MatterRCACId(0xCACACACA00000002) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Root02.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
 
     ChipDN expectedSubjectDN_ICA02;
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_ICA02.AddAttribute_MatterICACId(0xCACACACA00000004) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_ICA02.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_ICA02.AddAttribute_MatterICACId(0xCACACACA00000004) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_ICA02.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
 
     ChipDN expectedSubjectDN_Node01_01;
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Node01_01.AddAttribute_MatterNodeId(0xDEDEDEDE00010001) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Node01_01.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node01_01.AddAttribute_MatterNodeId(0xDEDEDEDE00010001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node01_01.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
 
     const static char commonName_RDN[] = "TestCert02_03";
 
     ChipDN expectedSubjectDN_Node02_03;
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Node02_03.AddAttribute_MatterNodeId(0xDEDEDEDE00020003) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Node02_03.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite,
-                   expectedSubjectDN_Node02_03.AddAttribute_CommonName(CharSpan(commonName_RDN, strlen(commonName_RDN)), false) ==
-                       CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, expectedSubjectDN_Node02_03.AddAttribute_MatterCASEAuthTag(0xABCD0001) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node02_03.AddAttribute_MatterNodeId(0xDEDEDEDE00020003) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node02_03.AddAttribute_MatterFabricId(0xFAB000000000001D) == CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node02_03.AddAttribute_CommonName(CharSpan(commonName_RDN, strlen(commonName_RDN)), false) ==
+                CHIP_NO_ERROR);
+    EXPECT_TRUE(expectedSubjectDN_Node02_03.AddAttribute_MatterCASEAuthTag(0xABCD0001) == CHIP_NO_ERROR);
 
     // clang-format off
     TestCase sTestCases[] = {
@@ -2032,12 +2026,12 @@ static void TestChipCert_ExtractSubjectDNFromChipCert(nlTestSuite * inSuite, voi
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         ChipDN subjectDN;
         err = ExtractSubjectDNFromChipCert(cert, subjectDN);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, subjectDN.IsEqual(testCase.ExpectedSubjectDN));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(subjectDN.IsEqual(testCase.ExpectedSubjectDN));
     }
 
     // Test extraction from the X509 ByteSpan form.
@@ -2045,16 +2039,16 @@ static void TestChipCert_ExtractSubjectDNFromChipCert(nlTestSuite * inSuite, voi
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, TestCertLoadFlags::kDERForm, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         ChipDN subjectDN;
         err = ExtractSubjectDNFromX509Cert(cert, subjectDN);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, subjectDN.IsEqual(testCase.ExpectedSubjectDN));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(subjectDN.IsEqual(testCase.ExpectedSubjectDN));
     }
 }
 
-static void TestChipCert_ExtractPublicKeyAndSKID(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestChipCert, ExtractPublicKeyAndSKID)
 {
     struct TestCase
     {
@@ -2089,94 +2083,16 @@ static void TestChipCert_ExtractPublicKeyAndSKID(nlTestSuite * inSuite, void * i
     {
         ByteSpan cert;
         CHIP_ERROR err = GetTestCert(testCase.Cert, sNullLoadFlag, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
 
         P256PublicKeySpan publicKey;
         err = ExtractPublicKeyFromChipCert(cert, publicKey);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, publicKey.data_equal(testCase.ExpectedPublicKey));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(publicKey.data_equal(testCase.ExpectedPublicKey));
 
         CertificateKeyId skid;
         err = ExtractSKIDFromChipCert(cert, skid);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, skid.data_equal(testCase.ExpectedSKID));
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
+        EXPECT_TRUE(skid.data_equal(testCase.ExpectedSKID));
     }
 }
-
-/**
- *  Set up the test suite.
- */
-int TestChipCert_Setup(void * inContext)
-{
-    CHIP_ERROR error = chip::Platform::MemoryInit();
-
-    if (error != CHIP_NO_ERROR)
-    {
-        return FAILURE;
-    }
-
-    return SUCCESS;
-}
-
-/**
- *  Tear down the test suite.
- */
-int TestChipCert_Teardown(void * inContext)
-{
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
-}
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-// clang-format off
-static const nlTest sTests[] = {
-    NL_TEST_DEF("Test CHIP Certificate CHIP to X509 Conversion", TestChipCert_ChipToX509),
-    NL_TEST_DEF("Test CHIP Certificate CHIP to X509 Conversion - Error Cases", TestChipCert_ChipToX509_ErrorCases),
-    NL_TEST_DEF("Test CHIP Certificate Loading - Error Cases", TestChipCert_ChipCertLoad_ErrorCases),
-    NL_TEST_DEF("Test CHIP Certificate Validate RCAC - Error Cases", TestChipCert_ValidateChipRCAC_ErrorCases),
-    NL_TEST_DEF("Test CHIP Certificate Get Cert Type from Subject - Error Cases", TestChipCert_GetCertType_ErrorCases),
-    NL_TEST_DEF("Test CHIP Certificate X509 to CHIP Conversion", TestChipCert_X509ToChip),
-    NL_TEST_DEF("Test CHIP Certificate X509 to CHIP Conversion - Error Cases", TestChipCert_X509ToChip_ErrorCases),
-    NL_TEST_DEF("Test CHIP Certificate Distinguish Name", TestChipCert_ChipDN),
-    NL_TEST_DEF("Test CHIP Certificate Validation", TestChipCert_CertValidation),
-    NL_TEST_DEF("Test CHIP Certificate Validation time", TestChipCert_CertValidTime),
-    NL_TEST_DEF("Test CHIP Root Certificate Validation", TestChipCert_ValidateChipRCAC),
-    NL_TEST_DEF("Test CHIP Certificate Validity Policy injection", TestChipCert_CertValidityPolicyInjection),
-    NL_TEST_DEF("Test CHIP Certificate Usage", TestChipCert_CertUsage),
-    NL_TEST_DEF("Test CHIP Certificate Type", TestChipCert_CertType),
-    NL_TEST_DEF("Test CHIP Certificate ID", TestChipCert_CertId),
-    NL_TEST_DEF("Test Loading Duplicate Certificates", TestChipCert_LoadDuplicateCerts),
-    NL_TEST_DEF("Test CHIP Generate Root Certificate", TestChipCert_GenerateRootCert),
-    NL_TEST_DEF("Test CHIP Generate Root Certificate with Fabric", TestChipCert_GenerateRootFabCert),
-    NL_TEST_DEF("Test CHIP Generate ICA Certificate", TestChipCert_GenerateICACert),
-    NL_TEST_DEF("Test CHIP Generate NOC using Root", TestChipCert_GenerateNOCRoot),
-    NL_TEST_DEF("Test CHIP Generate NOC using ICA", TestChipCert_GenerateNOCICA),
-    NL_TEST_DEF("Test CHIP Verify Generated Cert Chain", TestChipCert_VerifyGeneratedCerts),
-    NL_TEST_DEF("Test CHIP Verify Generated Cert Chain No ICA", TestChipCert_VerifyGeneratedCertsNoICA),
-    NL_TEST_DEF("Test extracting Node ID and Fabric ID from node certificate", TestChipCert_ExtractNodeIdFabricId),
-    NL_TEST_DEF("Test extracting Operational Discovery ID from node and root certificate", TestChipCert_ExtractOperationalDiscoveryId),
-    NL_TEST_DEF("Test extracting and validating CASE Authenticated Tags from NOC", TestChipCert_ExtractAndValidateCATsFromOpCert),
-    NL_TEST_DEF("Test extracting Subject DN from chip certificate", TestChipCert_ExtractSubjectDNFromChipCert),
-    NL_TEST_DEF("Test extracting PublicKey and SKID from chip certificate", TestChipCert_ExtractPublicKeyAndSKID),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestChipCert()
-{
-    // clang-format off
-    nlTestSuite theSuite =
-    {
-        "Credentials-CHIP-Certs",
-        &sTests[0],
-        TestChipCert_Setup,
-        TestChipCert_Teardown
-    };
-    // clang-format on
-    nlTestRunner(&theSuite, nullptr);
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestChipCert);

@@ -31,9 +31,8 @@
 #include <crypto/CHIPCryptoPAL.h>
 #include <lib/support/Span.h>
 #include <lib/support/UnitTestExtendedAssertions.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using namespace chip;
 using namespace chip::ASN1;
@@ -263,59 +262,57 @@ static constexpr TestCase sTestCases[] = {
       ByteSpan(sTestCMS_CDContent02), ByteSpan(sTestCMS_SignedMessage02) },
 };
 
-static void TestCD_EncodeDecode(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, EncodeDecode)
 {
     for (const auto & testCase : sTestCases)
     {
         uint8_t encodedCertElemBuf[kCertificationElements_TLVEncodedMaxLength];
         MutableByteSpan encodedCDPayload(encodedCertElemBuf);
 
-        NL_TEST_ASSERT(inSuite, EncodeCertificationElements(testCase.cdElements, encodedCDPayload) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(encodedCDPayload));
+        EXPECT_TRUE(EncodeCertificationElements(testCase.cdElements, encodedCDPayload) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(encodedCDPayload));
 
         CertificationElements decodedElements;
-        NL_TEST_ASSERT(inSuite, DecodeCertificationElements(encodedCDPayload, decodedElements) == CHIP_NO_ERROR);
+        EXPECT_TRUE(DecodeCertificationElements(encodedCDPayload, decodedElements) == CHIP_NO_ERROR);
 
-        NL_TEST_ASSERT(inSuite, decodedElements.FormatVersion == testCase.cdElements.FormatVersion);
-        NL_TEST_ASSERT(inSuite, decodedElements.VendorId == testCase.cdElements.VendorId);
-        NL_TEST_ASSERT(inSuite, decodedElements.ProductIdsCount == testCase.cdElements.ProductIdsCount);
+        EXPECT_TRUE(decodedElements.FormatVersion == testCase.cdElements.FormatVersion);
+        EXPECT_TRUE(decodedElements.VendorId == testCase.cdElements.VendorId);
+        EXPECT_TRUE(decodedElements.ProductIdsCount == testCase.cdElements.ProductIdsCount);
         for (uint8_t j = 0; j < decodedElements.ProductIdsCount; j++)
         {
-            NL_TEST_ASSERT(inSuite, decodedElements.ProductIds[j] == testCase.cdElements.ProductIds[j]);
+            EXPECT_TRUE(decodedElements.ProductIds[j] == testCase.cdElements.ProductIds[j]);
         }
-        NL_TEST_ASSERT(inSuite, decodedElements.DeviceTypeId == testCase.cdElements.DeviceTypeId);
-        NL_TEST_ASSERT(inSuite,
-                       memcmp(decodedElements.CertificateId, testCase.cdElements.CertificateId, kCertificateIdLength) == 0);
-        NL_TEST_ASSERT(inSuite, decodedElements.SecurityLevel == testCase.cdElements.SecurityLevel);
-        NL_TEST_ASSERT(inSuite, decodedElements.SecurityInformation == testCase.cdElements.SecurityInformation);
-        NL_TEST_ASSERT(inSuite, decodedElements.VersionNumber == testCase.cdElements.VersionNumber);
-        NL_TEST_ASSERT(inSuite, decodedElements.CertificationType == testCase.cdElements.CertificationType);
-        NL_TEST_ASSERT(inSuite, decodedElements.DACOriginVIDandPIDPresent == testCase.cdElements.DACOriginVIDandPIDPresent);
+        EXPECT_TRUE(decodedElements.DeviceTypeId == testCase.cdElements.DeviceTypeId);
+        EXPECT_TRUE(memcmp(decodedElements.CertificateId, testCase.cdElements.CertificateId, kCertificateIdLength) == 0);
+        EXPECT_TRUE(decodedElements.SecurityLevel == testCase.cdElements.SecurityLevel);
+        EXPECT_TRUE(decodedElements.SecurityInformation == testCase.cdElements.SecurityInformation);
+        EXPECT_TRUE(decodedElements.VersionNumber == testCase.cdElements.VersionNumber);
+        EXPECT_TRUE(decodedElements.CertificationType == testCase.cdElements.CertificationType);
+        EXPECT_TRUE(decodedElements.DACOriginVIDandPIDPresent == testCase.cdElements.DACOriginVIDandPIDPresent);
         if (decodedElements.DACOriginVIDandPIDPresent)
         {
-            NL_TEST_ASSERT(inSuite, decodedElements.DACOriginVendorId == testCase.cdElements.DACOriginVendorId);
-            NL_TEST_ASSERT(inSuite, decodedElements.DACOriginProductId == testCase.cdElements.DACOriginProductId);
+            EXPECT_TRUE(decodedElements.DACOriginVendorId == testCase.cdElements.DACOriginVendorId);
+            EXPECT_TRUE(decodedElements.DACOriginProductId == testCase.cdElements.DACOriginProductId);
         }
-        NL_TEST_ASSERT(inSuite, decodedElements.AuthorizedPAAListCount == testCase.cdElements.AuthorizedPAAListCount);
+        EXPECT_TRUE(decodedElements.AuthorizedPAAListCount == testCase.cdElements.AuthorizedPAAListCount);
         for (uint8_t j = 0; j < decodedElements.AuthorizedPAAListCount; j++)
         {
-            NL_TEST_ASSERT(
-                inSuite,
+            EXPECT_TRUE(
                 memcmp(decodedElements.AuthorizedPAAList[j], testCase.cdElements.AuthorizedPAAList[j], kKeyIdentifierLength) == 0);
         }
     }
 }
 
-static void TestCD_EncodeDecode_Errors(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, EncodeDecode_Errors)
 {
     uint8_t encodedCertElemBuf[kCertificationElements_TLVEncodedMaxLength];
     MutableByteSpan encodedCDPayload(encodedCertElemBuf);
-    NL_TEST_ASSERT(inSuite, EncodeCertificationElements(sTestCMS_CertElements01, encodedCDPayload) == CHIP_NO_ERROR);
+    EXPECT_TRUE(EncodeCertificationElements(sTestCMS_CertElements01, encodedCDPayload) == CHIP_NO_ERROR);
 
     // Test Encode Error: CHIP_ERROR_BUFFER_TOO_SMALL
     // Provide a smaller buffer as an input.
     encodedCDPayload.reduce_size(encodedCDPayload.size() - 4);
-    NL_TEST_ASSERT(inSuite, EncodeCertificationElements(sTestCMS_CertElements01, encodedCDPayload) == CHIP_ERROR_BUFFER_TOO_SMALL);
+    EXPECT_TRUE(EncodeCertificationElements(sTestCMS_CertElements01, encodedCDPayload) == CHIP_ERROR_BUFFER_TOO_SMALL);
 
     // Test Decode Error: CHIP_ERROR_INVALID_INTEGER_VALUE
     // Manually modified sTestCMS_CDContent01[]: updated VendorId element to 4-octet
@@ -327,9 +324,8 @@ static void TestCD_EncodeDecode_Errors(nlTestSuite * inSuite, void * inContext)
     };
 
     CertificationElements certElementsOut;
-    NL_TEST_ASSERT(inSuite,
-                   DecodeCertificationElements(ByteSpan(sTestCMS_CDContent01_Err01), certElementsOut) ==
-                       CHIP_ERROR_INVALID_INTEGER_VALUE);
+    EXPECT_TRUE(DecodeCertificationElements(ByteSpan(sTestCMS_CDContent01_Err01), certElementsOut) ==
+                CHIP_ERROR_INVALID_INTEGER_VALUE);
 
     // Test Decode Error: CHIP_ERROR_UNEXPECTED_TLV_ELEMENT
     // Manually modified sTestCMS_CDContent01[]: switched ProductIds and DeviceTypeId elements tag (0x02 <--> 0x03)
@@ -338,12 +334,11 @@ static void TestCD_EncodeDecode_Errors(nlTestSuite * inSuite, void * inContext)
                                                               0x49, 0x47, 0x32, 0x30, 0x31, 0x34, 0x31, 0x5a, 0x42, 0x33, 0x33,
                                                               0x30, 0x30, 0x30, 0x31, 0x2d, 0x32, 0x34, 0x24, 0x05, 0x00, 0x24,
                                                               0x06, 0x00, 0x25, 0x07, 0x94, 0x26, 0x24, 0x08, 0x00, 0x18 };
-    NL_TEST_ASSERT(inSuite,
-                   DecodeCertificationElements(ByteSpan(sTestCMS_CDContent01_Err02), certElementsOut) ==
-                       CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
+    EXPECT_TRUE(DecodeCertificationElements(ByteSpan(sTestCMS_CDContent01_Err02), certElementsOut) ==
+                CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
 }
 
-static void TestCD_CMSSignAndVerify(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, CMSSignAndVerify)
 {
     ByteSpan cdContentIn(sTestCMS_CDContent01);
     ByteSpan cdContentOut;
@@ -352,14 +347,14 @@ static void TestCD_CMSSignAndVerify(nlTestSuite * inSuite, void * inContext)
     uint8_t signedMessageBuf[kMaxCMSSignedCDMessage];
     MutableByteSpan signedMessage(signedMessageBuf);
 
-    NL_TEST_ASSERT(inSuite, ExtractSKIDFromX509Cert(ByteSpan(sTestCMS_SignerCert), signerKeyId) == CHIP_NO_ERROR);
+    EXPECT_TRUE(ExtractSKIDFromX509Cert(ByteSpan(sTestCMS_SignerCert), signerKeyId) == CHIP_NO_ERROR);
 
     // Test with random key
     P256Keypair keypair;
-    NL_TEST_ASSERT(inSuite, keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, CMS_Sign(cdContentIn, signerKeyId, keypair, signedMessage) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, CMS_Verify(signedMessage, keypair.Pubkey(), cdContentOut) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, cdContentIn.data_equal(cdContentOut));
+    EXPECT_TRUE(keypair.Initialize(ECPKeyTarget::ECDSA) == CHIP_NO_ERROR);
+    EXPECT_TRUE(CMS_Sign(cdContentIn, signerKeyId, keypair, signedMessage) == CHIP_NO_ERROR);
+    EXPECT_TRUE(CMS_Verify(signedMessage, keypair.Pubkey(), cdContentOut) == CHIP_NO_ERROR);
+    EXPECT_TRUE(cdContentIn.data_equal(cdContentOut));
 
     // Test with known key
     P256Keypair keypair2;
@@ -368,93 +363,89 @@ static void TestCD_CMSSignAndVerify(nlTestSuite * inSuite, void * inContext)
     serializedKeypair.SetLength(sizeof(sTestCMS_SignerSerializedKeypair));
     cdContentIn   = ByteSpan(sTestCMS_CDContent02);
     signedMessage = MutableByteSpan(signedMessageBuf);
-    NL_TEST_ASSERT(inSuite, keypair2.Deserialize(serializedKeypair) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, CMS_Sign(cdContentIn, signerKeyId, keypair2, signedMessage) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, CMS_Verify(signedMessage, keypair2.Pubkey(), cdContentOut) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, cdContentIn.data_equal(cdContentOut));
+    EXPECT_TRUE(keypair2.Deserialize(serializedKeypair) == CHIP_NO_ERROR);
+    EXPECT_TRUE(CMS_Sign(cdContentIn, signerKeyId, keypair2, signedMessage) == CHIP_NO_ERROR);
+    EXPECT_TRUE(CMS_Verify(signedMessage, keypair2.Pubkey(), cdContentOut) == CHIP_NO_ERROR);
+    EXPECT_TRUE(cdContentIn.data_equal(cdContentOut));
 }
 
-static void TestCD_CMSVerifyAndExtract(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, CMSVerifyAndExtract)
 {
     for (const auto & testCase : sTestCases)
     {
         // Verify using signer P256PublicKey
         ByteSpan cdContentOut;
-        NL_TEST_ASSERT(inSuite,
-                       CMS_Verify(testCase.cdCMSSigned, P256PublicKey(testCase.signerPubkey), cdContentOut) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(cdContentOut));
+        EXPECT_TRUE(CMS_Verify(testCase.cdCMSSigned, P256PublicKey(testCase.signerPubkey), cdContentOut) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(cdContentOut));
 
         // Verify using signer X509 Certificate
         cdContentOut = ByteSpan();
-        NL_TEST_ASSERT(inSuite, CMS_Verify(testCase.cdCMSSigned, testCase.signerCert, cdContentOut) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(cdContentOut));
+        EXPECT_TRUE(CMS_Verify(testCase.cdCMSSigned, testCase.signerCert, cdContentOut) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(cdContentOut));
 
         // Test CMS_ExtractCDContent()
         cdContentOut = ByteSpan();
-        NL_TEST_ASSERT(inSuite, CMS_ExtractCDContent(testCase.cdCMSSigned, cdContentOut) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(cdContentOut));
+        EXPECT_TRUE(CMS_ExtractCDContent(testCase.cdCMSSigned, cdContentOut) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(cdContentOut));
 
         // Test CMS_ExtractKeyId()
         uint8_t signerKeyIdBuf[Crypto::kSubjectKeyIdentifierLength];
         MutableByteSpan signerKeyId(signerKeyIdBuf);
-        NL_TEST_ASSERT(inSuite, ExtractSKIDFromX509Cert(testCase.signerCert, signerKeyId) == CHIP_NO_ERROR);
+        EXPECT_TRUE(ExtractSKIDFromX509Cert(testCase.signerCert, signerKeyId) == CHIP_NO_ERROR);
 
         ByteSpan signerKeyIdOut;
-        NL_TEST_ASSERT(inSuite, CMS_ExtractKeyId(testCase.cdCMSSigned, signerKeyIdOut) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, signerKeyId.data_equal(signerKeyIdOut));
+        EXPECT_TRUE(CMS_ExtractKeyId(testCase.cdCMSSigned, signerKeyIdOut) == CHIP_NO_ERROR);
+        EXPECT_TRUE(signerKeyId.data_equal(signerKeyIdOut));
     }
 }
 
-static void TestCD_CertificationElementsDecoder(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, CertificationElementsDecoder)
 {
     for (const auto & testCase : sTestCases)
     {
         uint8_t encodedCertElemBuf[kCertificationElements_TLVEncodedMaxLength];
         MutableByteSpan encodedCDPayload(encodedCertElemBuf);
 
-        NL_TEST_ASSERT(inSuite, EncodeCertificationElements(testCase.cdElements, encodedCDPayload) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(encodedCDPayload));
+        EXPECT_TRUE(EncodeCertificationElements(testCase.cdElements, encodedCDPayload) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(encodedCDPayload));
 
         CertificationElementsWithoutPIDs certificationDeclarationContent;
         CertificationElementsDecoder certificationElementsDecoder;
-        NL_TEST_ASSERT(inSuite, DecodeCertificationElements(encodedCDPayload, certificationDeclarationContent) == CHIP_NO_ERROR);
+        EXPECT_TRUE(DecodeCertificationElements(encodedCDPayload, certificationDeclarationContent) == CHIP_NO_ERROR);
 
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.formatVersion == testCase.cdElements.FormatVersion);
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.vendorId == testCase.cdElements.VendorId);
+        EXPECT_TRUE(certificationDeclarationContent.formatVersion == testCase.cdElements.FormatVersion);
+        EXPECT_TRUE(certificationDeclarationContent.vendorId == testCase.cdElements.VendorId);
         for (uint8_t j = 0; j < testCase.cdElements.ProductIdsCount; j++)
         {
-            NL_TEST_ASSERT(inSuite,
-                           certificationElementsDecoder.IsProductIdIn(encodedCDPayload, testCase.cdElements.ProductIds[j]));
+            EXPECT_TRUE(certificationElementsDecoder.IsProductIdIn(encodedCDPayload, testCase.cdElements.ProductIds[j]));
             // now test for an unexistent ProductId
-            NL_TEST_ASSERT(inSuite, certificationElementsDecoder.IsProductIdIn(encodedCDPayload, 0x9000) == false);
+            EXPECT_TRUE(certificationElementsDecoder.IsProductIdIn(encodedCDPayload, 0x9000) == false);
         }
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.deviceTypeId == testCase.cdElements.DeviceTypeId);
-        NL_TEST_ASSERT(
-            inSuite,
+        EXPECT_TRUE(certificationDeclarationContent.deviceTypeId == testCase.cdElements.DeviceTypeId);
+        EXPECT_TRUE(
             memcmp(certificationDeclarationContent.certificateId, testCase.cdElements.CertificateId, kCertificateIdLength) == 0);
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.securityLevel == testCase.cdElements.SecurityLevel);
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.securityInformation == testCase.cdElements.SecurityInformation);
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.versionNumber == testCase.cdElements.VersionNumber);
-        NL_TEST_ASSERT(inSuite, certificationDeclarationContent.certificationType == testCase.cdElements.CertificationType);
-        NL_TEST_ASSERT(inSuite,
-                       certificationDeclarationContent.dacOriginVIDandPIDPresent == testCase.cdElements.DACOriginVIDandPIDPresent);
+        EXPECT_TRUE(certificationDeclarationContent.securityLevel == testCase.cdElements.SecurityLevel);
+        EXPECT_TRUE(certificationDeclarationContent.securityInformation == testCase.cdElements.SecurityInformation);
+        EXPECT_TRUE(certificationDeclarationContent.versionNumber == testCase.cdElements.VersionNumber);
+        EXPECT_TRUE(certificationDeclarationContent.certificationType == testCase.cdElements.CertificationType);
+        EXPECT_TRUE(certificationDeclarationContent.dacOriginVIDandPIDPresent == testCase.cdElements.DACOriginVIDandPIDPresent);
         if (certificationDeclarationContent.dacOriginVIDandPIDPresent)
         {
-            NL_TEST_ASSERT(inSuite, certificationDeclarationContent.dacOriginVendorId == testCase.cdElements.DACOriginVendorId);
-            NL_TEST_ASSERT(inSuite, certificationDeclarationContent.dacOriginProductId == testCase.cdElements.DACOriginProductId);
+            EXPECT_TRUE(certificationDeclarationContent.dacOriginVendorId == testCase.cdElements.DACOriginVendorId);
+            EXPECT_TRUE(certificationDeclarationContent.dacOriginProductId == testCase.cdElements.DACOriginProductId);
         }
         if (testCase.cdElements.AuthorizedPAAListCount > 0)
         {
-            NL_TEST_ASSERT(inSuite, certificationDeclarationContent.authorizedPAAListPresent);
+            EXPECT_TRUE(certificationDeclarationContent.authorizedPAAListPresent);
         }
         else
         {
-            NL_TEST_ASSERT(inSuite, !certificationDeclarationContent.authorizedPAAListPresent);
+            EXPECT_TRUE(!certificationDeclarationContent.authorizedPAAListPresent);
         }
     }
 }
 
-static void TestCD_EncodeDecode_Random(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, EncodeDecode_Random)
 {
     CertificationElements randomElements = { .FormatVersion             = 0x6F,
                                              .VendorId                  = 0x88EA,
@@ -489,97 +480,95 @@ static void TestCD_EncodeDecode_Random(nlTestSuite * inSuite, void * inContext)
     MutableByteSpan encodedCDPayload(encodedCertElemBuf);
     CertificationElements decodedElements;
 
-    NL_TEST_ASSERT(inSuite, EncodeCertificationElements(randomElements, encodedCDPayload) == CHIP_NO_ERROR);
+    EXPECT_TRUE(EncodeCertificationElements(randomElements, encodedCDPayload) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, DecodeCertificationElements(encodedCDPayload, decodedElements) == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, decodedElements.FormatVersion == randomElements.FormatVersion);
-    NL_TEST_ASSERT(inSuite, decodedElements.VendorId == randomElements.VendorId);
-    NL_TEST_ASSERT(inSuite, decodedElements.ProductIdsCount == randomElements.ProductIdsCount);
+    EXPECT_TRUE(DecodeCertificationElements(encodedCDPayload, decodedElements) == CHIP_NO_ERROR);
+    EXPECT_TRUE(decodedElements.FormatVersion == randomElements.FormatVersion);
+    EXPECT_TRUE(decodedElements.VendorId == randomElements.VendorId);
+    EXPECT_TRUE(decodedElements.ProductIdsCount == randomElements.ProductIdsCount);
     for (uint8_t j = 0; j < decodedElements.ProductIdsCount; j++)
     {
-        NL_TEST_ASSERT(inSuite, decodedElements.ProductIds[j] == randomElements.ProductIds[j]);
+        EXPECT_TRUE(decodedElements.ProductIds[j] == randomElements.ProductIds[j]);
     }
-    NL_TEST_ASSERT(inSuite, decodedElements.DeviceTypeId == randomElements.DeviceTypeId);
-    NL_TEST_ASSERT(inSuite, memcmp(decodedElements.CertificateId, randomElements.CertificateId, kCertificateIdLength) == 0);
-    NL_TEST_ASSERT(inSuite, decodedElements.SecurityLevel == randomElements.SecurityLevel);
-    NL_TEST_ASSERT(inSuite, decodedElements.SecurityInformation == randomElements.SecurityInformation);
-    NL_TEST_ASSERT(inSuite, decodedElements.VersionNumber == randomElements.VersionNumber);
-    NL_TEST_ASSERT(inSuite, decodedElements.CertificationType == randomElements.CertificationType);
-    NL_TEST_ASSERT(inSuite, decodedElements.DACOriginVIDandPIDPresent == randomElements.DACOriginVIDandPIDPresent);
+    EXPECT_TRUE(decodedElements.DeviceTypeId == randomElements.DeviceTypeId);
+    EXPECT_TRUE(memcmp(decodedElements.CertificateId, randomElements.CertificateId, kCertificateIdLength) == 0);
+    EXPECT_TRUE(decodedElements.SecurityLevel == randomElements.SecurityLevel);
+    EXPECT_TRUE(decodedElements.SecurityInformation == randomElements.SecurityInformation);
+    EXPECT_TRUE(decodedElements.VersionNumber == randomElements.VersionNumber);
+    EXPECT_TRUE(decodedElements.CertificationType == randomElements.CertificationType);
+    EXPECT_TRUE(decodedElements.DACOriginVIDandPIDPresent == randomElements.DACOriginVIDandPIDPresent);
     if (decodedElements.DACOriginVIDandPIDPresent)
     {
-        NL_TEST_ASSERT(inSuite, decodedElements.DACOriginVendorId == randomElements.DACOriginVendorId);
-        NL_TEST_ASSERT(inSuite, decodedElements.DACOriginProductId == randomElements.DACOriginProductId);
+        EXPECT_TRUE(decodedElements.DACOriginVendorId == randomElements.DACOriginVendorId);
+        EXPECT_TRUE(decodedElements.DACOriginProductId == randomElements.DACOriginProductId);
     }
-    NL_TEST_ASSERT(inSuite, decodedElements.AuthorizedPAAListCount == randomElements.AuthorizedPAAListCount);
+    EXPECT_TRUE(decodedElements.AuthorizedPAAListCount == randomElements.AuthorizedPAAListCount);
     for (uint8_t j = 0; j < decodedElements.AuthorizedPAAListCount; j++)
     {
-        NL_TEST_ASSERT(
-            inSuite, memcmp(decodedElements.AuthorizedPAAList[j], randomElements.AuthorizedPAAList[j], kKeyIdentifierLength) == 0);
+        EXPECT_TRUE(memcmp(decodedElements.AuthorizedPAAList[j], randomElements.AuthorizedPAAList[j], kKeyIdentifierLength) == 0);
     }
 
     CertificationElementsWithoutPIDs decodedElements2;
     CertificationElementsDecoder cdElementsDecoder;
-    NL_TEST_ASSERT(inSuite, DecodeCertificationElements(encodedCDPayload, decodedElements2) == CHIP_NO_ERROR);
+    EXPECT_TRUE(DecodeCertificationElements(encodedCDPayload, decodedElements2) == CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, decodedElements2.formatVersion == randomElements.FormatVersion);
-    NL_TEST_ASSERT(inSuite, decodedElements2.vendorId == randomElements.VendorId);
+    EXPECT_TRUE(decodedElements2.formatVersion == randomElements.FormatVersion);
+    EXPECT_TRUE(decodedElements2.vendorId == randomElements.VendorId);
     for (uint8_t j = 0; j < randomElements.ProductIdsCount; j++)
     {
-        NL_TEST_ASSERT(inSuite, cdElementsDecoder.IsProductIdIn(encodedCDPayload, randomElements.ProductIds[j]));
+        EXPECT_TRUE(cdElementsDecoder.IsProductIdIn(encodedCDPayload, randomElements.ProductIds[j]));
         // now test for an unexistent ProductId
-        NL_TEST_ASSERT(inSuite, cdElementsDecoder.IsProductIdIn(encodedCDPayload, pid++) == false);
+        EXPECT_TRUE(cdElementsDecoder.IsProductIdIn(encodedCDPayload, pid++) == false);
     }
-    NL_TEST_ASSERT(inSuite, decodedElements2.deviceTypeId == randomElements.DeviceTypeId);
-    NL_TEST_ASSERT(inSuite, memcmp(decodedElements2.certificateId, randomElements.CertificateId, kCertificateIdLength) == 0);
-    NL_TEST_ASSERT(inSuite, decodedElements2.securityLevel == randomElements.SecurityLevel);
-    NL_TEST_ASSERT(inSuite, decodedElements2.securityInformation == randomElements.SecurityInformation);
-    NL_TEST_ASSERT(inSuite, decodedElements2.versionNumber == randomElements.VersionNumber);
-    NL_TEST_ASSERT(inSuite, decodedElements2.certificationType == randomElements.CertificationType);
-    NL_TEST_ASSERT(inSuite, decodedElements2.dacOriginVIDandPIDPresent == randomElements.DACOriginVIDandPIDPresent);
+    EXPECT_TRUE(decodedElements2.deviceTypeId == randomElements.DeviceTypeId);
+    EXPECT_TRUE(memcmp(decodedElements2.certificateId, randomElements.CertificateId, kCertificateIdLength) == 0);
+    EXPECT_TRUE(decodedElements2.securityLevel == randomElements.SecurityLevel);
+    EXPECT_TRUE(decodedElements2.securityInformation == randomElements.SecurityInformation);
+    EXPECT_TRUE(decodedElements2.versionNumber == randomElements.VersionNumber);
+    EXPECT_TRUE(decodedElements2.certificationType == randomElements.CertificationType);
+    EXPECT_TRUE(decodedElements2.dacOriginVIDandPIDPresent == randomElements.DACOriginVIDandPIDPresent);
     if (decodedElements2.dacOriginVIDandPIDPresent)
     {
-        NL_TEST_ASSERT(inSuite, decodedElements2.dacOriginVendorId == randomElements.DACOriginVendorId);
-        NL_TEST_ASSERT(inSuite, decodedElements2.dacOriginProductId == randomElements.DACOriginProductId);
+        EXPECT_TRUE(decodedElements2.dacOriginVendorId == randomElements.DACOriginVendorId);
+        EXPECT_TRUE(decodedElements2.dacOriginProductId == randomElements.DACOriginProductId);
     }
-    NL_TEST_ASSERT(inSuite, decodedElements2.authorizedPAAListPresent);
+    EXPECT_TRUE(decodedElements2.authorizedPAAListPresent);
     for (uint8_t j = 0; j < randomElements.AuthorizedPAAListCount; j++)
     {
-        NL_TEST_ASSERT(inSuite,
-                       cdElementsDecoder.HasAuthorizedPAA(encodedCDPayload, ByteSpan(randomElements.AuthorizedPAAList[j])));
+        EXPECT_TRUE(cdElementsDecoder.HasAuthorizedPAA(encodedCDPayload, ByteSpan(randomElements.AuthorizedPAAList[j])));
         // now test for an unexistent PAA
         kid[(kKeyIdentifierLength - 1 - j) % kKeyIdentifierLength] ^= 0x5A;
-        NL_TEST_ASSERT(inSuite, cdElementsDecoder.HasAuthorizedPAA(encodedCDPayload, ByteSpan(kid)) == false);
+        EXPECT_TRUE(cdElementsDecoder.HasAuthorizedPAA(encodedCDPayload, ByteSpan(kid)) == false);
     }
 }
 
-static void TestCD_DefaultCdTrustStore(nlTestSuite * inSuite, void * inContext)
+TEST(TestCertificationDeclaration, DefaultCdTrustStore)
 {
     chip::Credentials::CsaCdKeysTrustStore trustStore;
 
     // Make sure that for an untrusted CD, whose key is not in truststore, we cannot find the key.
     {
         ByteSpan signerKeyIdOut;
-        NL_TEST_ASSERT_SUCCESS(inSuite, CMS_ExtractKeyId(ByteSpan(gUntrustedCd), signerKeyIdOut));
-        NL_TEST_ASSERT(inSuite, !trustStore.IsCdTestKey(signerKeyIdOut));
+        ASSERT_EQ(CHIP_NO_ERROR, CMS_ExtractKeyId(ByteSpan(gUntrustedCd), signerKeyIdOut));
+        EXPECT_TRUE(!trustStore.IsCdTestKey(signerKeyIdOut));
 
         P256PublicKey pubKey;
-        NL_TEST_ASSERT(inSuite, CHIP_ERROR_KEY_NOT_FOUND == trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
+        EXPECT_TRUE(CHIP_ERROR_KEY_NOT_FOUND == trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
     }
 
     // Verify that a payload known to use the test key passes verification w/ default truststore
     {
         const auto & testCase = sTestCases[0];
         ByteSpan signerKeyIdOut;
-        NL_TEST_ASSERT_SUCCESS(inSuite, CMS_ExtractKeyId(testCase.cdCMSSigned, signerKeyIdOut));
-        NL_TEST_ASSERT(inSuite, trustStore.IsCdTestKey(signerKeyIdOut));
+        ASSERT_EQ(CHIP_NO_ERROR, CMS_ExtractKeyId(testCase.cdCMSSigned, signerKeyIdOut));
+        EXPECT_TRUE(trustStore.IsCdTestKey(signerKeyIdOut));
 
         P256PublicKey pubKey;
         ByteSpan cdContentOut;
-        NL_TEST_ASSERT_SUCCESS(inSuite, trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
+        ASSERT_EQ(CHIP_NO_ERROR, trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
 
-        NL_TEST_ASSERT(inSuite, CMS_Verify(testCase.cdCMSSigned, pubKey, cdContentOut) == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, testCase.cdContent.data_equal(cdContentOut));
+        EXPECT_TRUE(CMS_Verify(testCase.cdCMSSigned, pubKey, cdContentOut) == CHIP_NO_ERROR);
+        EXPECT_TRUE(testCase.cdContent.data_equal(cdContentOut));
     }
 
     // Verify that after adding the verifying key to the trust store, it is now possible to
@@ -587,49 +576,25 @@ static void TestCD_DefaultCdTrustStore(nlTestSuite * inSuite, void * inContext)
     {
         P256PublicKey pubKey;
         ByteSpan cdContentOut;
-        NL_TEST_ASSERT_SUCCESS(inSuite, trustStore.AddTrustedKey(ByteSpan(gUntrustedCdKid), gUntrustedCdVerifyingKey));
+        ASSERT_EQ(CHIP_NO_ERROR, trustStore.AddTrustedKey(ByteSpan(gUntrustedCdKid), gUntrustedCdVerifyingKey));
 
         ByteSpan signerKeyIdOut;
-        NL_TEST_ASSERT_SUCCESS(inSuite, CMS_ExtractKeyId(ByteSpan(gUntrustedCd), signerKeyIdOut));
-        NL_TEST_ASSERT(inSuite, signerKeyIdOut.data_equal(ByteSpan(gUntrustedCdKid)));
+        ASSERT_EQ(CHIP_NO_ERROR, CMS_ExtractKeyId(ByteSpan(gUntrustedCd), signerKeyIdOut));
+        EXPECT_TRUE(signerKeyIdOut.data_equal(ByteSpan(gUntrustedCdKid)));
 
-        NL_TEST_ASSERT_SUCCESS(inSuite, trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
-        NL_TEST_ASSERT(inSuite, pubKey.Matches(gUntrustedCdVerifyingKey));
+        ASSERT_EQ(CHIP_NO_ERROR, trustStore.LookupVerifyingKey(signerKeyIdOut, pubKey));
+        EXPECT_TRUE(pubKey.Matches(gUntrustedCdVerifyingKey));
 
-        NL_TEST_ASSERT_SUCCESS(inSuite, CMS_Verify(ByteSpan(gUntrustedCd), pubKey, cdContentOut));
+        ASSERT_EQ(CHIP_NO_ERROR, CMS_Verify(ByteSpan(gUntrustedCd), pubKey, cdContentOut));
     }
 
     // Verify that untrusted certificate key cannot be added to the trust store.
     {
-        NL_TEST_ASSERT(inSuite, CHIP_ERROR_INVALID_ARGUMENT == trustStore.AddTrustedKey(ByteSpan(gUntrustedCdCert)));
+        EXPECT_TRUE(CHIP_ERROR_INVALID_ARGUMENT == trustStore.AddTrustedKey(ByteSpan(gUntrustedCdCert)));
     }
 
     // Verify that trusted certificate key can be added to the trust store.
     {
-        NL_TEST_ASSERT_SUCCESS(inSuite, trustStore.AddTrustedKey(ByteSpan(gCdSigningCert001)));
+        ASSERT_EQ(CHIP_NO_ERROR, trustStore.AddTrustedKey(ByteSpan(gCdSigningCert001)));
     }
 }
-
-#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
-/**
- *   Test Suite. It lists all the test functions.
- */
-static const nlTest sTests[] = { NL_TEST_DEF_FN(TestCD_EncodeDecode),
-                                 NL_TEST_DEF_FN(TestCD_EncodeDecode_Errors),
-                                 NL_TEST_DEF_FN(TestCD_CMSSignAndVerify),
-                                 NL_TEST_DEF_FN(TestCD_CMSVerifyAndExtract),
-                                 NL_TEST_DEF_FN(TestCD_CertificationElementsDecoder),
-                                 NL_TEST_DEF_FN(TestCD_EncodeDecode_Random),
-                                 NL_TEST_DEF_FN(TestCD_DefaultCdTrustStore),
-                                 NL_TEST_SENTINEL() };
-
-int TestCertificationDeclaration()
-{
-    nlTestSuite theSuite = { "CHIP Certification Declaration tests", &sTests[0], nullptr, nullptr };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestCertificationDeclaration);

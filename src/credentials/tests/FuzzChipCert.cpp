@@ -8,7 +8,6 @@ using namespace chip::Credentials;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t * data, size_t len)
 {
-
     NodeId nodeId;
     FabricId fabricId;
 
