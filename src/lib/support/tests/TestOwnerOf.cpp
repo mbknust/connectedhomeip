@@ -17,9 +17,8 @@
  */
 
 #include <lib/support/OwnerOf.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 using namespace chip;
 
@@ -35,27 +34,10 @@ public:
     Member member;
 };
 
-static void TestMemberOwner(nlTestSuite * inSuite, void * inContext)
+TEST(TestOwnerOf, TestMemberOwner)
 {
     Base base;
     Member * member = &base.member;
-    NL_TEST_ASSERT(inSuite, OwnerOf(member, &Base::member) == &base);
-    NL_TEST_ASSERT(inSuite, &OwnerOf(member, &Base::member)->member == member);
+    EXPECT_TRUE(OwnerOf(member, &Base::member) == &base);
+    EXPECT_TRUE(&OwnerOf(member, &Base::member)->member == member);
 }
-
-#define NL_TEST_DEF_FN(fn) NL_TEST_DEF("Test " #fn, fn)
-/**
- *   Test Suite. It lists all the test functions.
- */
-static const nlTest sTests[] = { NL_TEST_DEF_FN(TestMemberOwner), NL_TEST_SENTINEL() };
-
-int TestOwnerOf()
-{
-    nlTestSuite theSuite = { "CHIP OwnerOf tests", &sTests[0], nullptr, nullptr };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestOwnerOf)

@@ -67,6 +67,11 @@ chip_test_suite("tests") {
   cflags = [
     "-Wconversion",
 
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
+
     # TODO(#21255): work-around for SimpleStateMachine constructor issue.
     "-Wno-uninitialized",
 

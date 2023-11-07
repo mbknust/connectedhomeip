@@ -22,13 +22,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <gtest/gtest.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CHIPArgParser.hpp>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/ScopedBuffer.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/Constants.h>
 
 #if CHIP_CONFIG_ENABLE_ARG_PARSER
@@ -175,6 +176,18 @@ static OptionSet sOptionSetB =
 
 namespace {
 
+class TestCHIPArgParser : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite()
+    {
+        ClearCallbackRecords();
+        printf("All tests succeeded\n");
+        chip::Platform::MemoryShutdown();
+    }
+};
+
 struct TestArgv
 {
     chip::Platform::ScopedMemoryBuffer<char> strings;
@@ -212,7 +225,7 @@ TestArgv DupeArgs(const char * argv[], int argc_as_int)
 
 } // namespace
 
-static void SimpleParseTest_SingleLongOption()
+TEST_F(TestCHIPArgParser, SingleLongOption)
 {
     bool res;
 
@@ -238,7 +251,7 @@ static void SimpleParseTest_SingleLongOption()
     VerifyHandleNonOptionArgsCallback(1, __FUNCTION__, 0);
 }
 
-static void SimpleParseTest_SingleShortOption()
+TEST_F(TestCHIPArgParser, SingleShortOption)
 {
     bool res;
 
@@ -264,7 +277,7 @@ static void SimpleParseTest_SingleShortOption()
     VerifyHandleNonOptionArgsCallback(1, __FUNCTION__, 0);
 }
 
-static void SimpleParseTest_SingleLongOptionWithValue()
+TEST_F(TestCHIPArgParser, SingleLongOptionWithValue)
 {
     bool res;
 
@@ -290,7 +303,7 @@ static void SimpleParseTest_SingleLongOptionWithValue()
     VerifyHandleNonOptionArgsCallback(1, __FUNCTION__, 0);
 }
 
-static void SimpleParseTest_SingleShortOptionWithValue()
+TEST_F(TestCHIPArgParser, SingleShortOptionWithValue)
 {
     bool res;
 
@@ -316,7 +329,7 @@ static void SimpleParseTest_SingleShortOptionWithValue()
     VerifyHandleNonOptionArgsCallback(1, __FUNCTION__, 0);
 }
 
-static void SimpleParseTest_VariousShortAndLongWithArgs()
+TEST_F(TestCHIPArgParser, VariousShortAndLongWithArgs)
 {
     bool res;
 
@@ -361,7 +374,7 @@ static void SimpleParseTest_VariousShortAndLongWithArgs()
     VerifyNonOptionArg(11, "non-opt-arg-4");
 }
 
-static void UnknownOptionTest_UnknownShortOption()
+TEST_F(TestCHIPArgParser, UnknownShortOption)
 {
     bool res;
 
@@ -394,7 +407,7 @@ static void UnknownOptionTest_UnknownShortOption()
     VerifyArgErrorContains(2, "-q");
 }
 
-static void UnknownOptionTest_UnknownLongOption()
+TEST_F(TestCHIPArgParser, UnknownLongOption)
 {
     bool res;
 
@@ -427,7 +440,7 @@ static void UnknownOptionTest_UnknownLongOption()
     VerifyArgErrorContains(2, "--bad");
 }
 
-static void UnknownOptionTest_UnknownShortOptionAfterKnown()
+TEST_F(TestCHIPArgParser, UnknownShortOptionAfterKnown)
 {
     bool res;
 
@@ -461,7 +474,7 @@ static void UnknownOptionTest_UnknownShortOptionAfterKnown()
     VerifyArgErrorContains(3, "-Q");
 }
 
-static void UnknownOptionTest_UnknownShortOptionBeforeKnown()
+TEST_F(TestCHIPArgParser, UnknownShortOptionBeforeKnown)
 {
     bool res;
 
@@ -488,7 +501,7 @@ static void UnknownOptionTest_UnknownShortOptionBeforeKnown()
     VerifyArgErrorContains(0, "-Q");
 }
 
-static void UnknownOptionTest_UnknownShortOptionAfterArgs()
+TEST_F(TestCHIPArgParser, UnknownShortOptionAfterArgs)
 {
     bool res;
 
@@ -517,7 +530,7 @@ static void UnknownOptionTest_UnknownShortOptionAfterArgs()
     VerifyArgErrorContains(0, "-Q");
 }
 
-static void UnknownOptionTest_UnknownLongOptionAfterArgs()
+TEST_F(TestCHIPArgParser, UnknownLongOptionAfterArgs)
 {
     bool res;
 
@@ -547,7 +560,7 @@ static void UnknownOptionTest_UnknownLongOptionAfterArgs()
 }
 
 #ifndef CHIP_CONFIG_NON_POSIX_LONG_OPT
-static void UnknownOptionTest_IgnoreUnknownLongOption()
+TEST_F(TestCHIPArgParser, IgnoreUnknownLongOption)
 {
     bool res;
 
@@ -581,7 +594,7 @@ static void UnknownOptionTest_IgnoreUnknownLongOption()
 }
 #endif // !CHIP_CONFIG_NON_POSIX_LONG_OPT
 
-static void UnknownOptionTest_IgnoreUnknownShortOption()
+TEST_F(TestCHIPArgParser, IgnoreUnknownShortOption)
 {
     bool res;
 
@@ -615,7 +628,7 @@ static void UnknownOptionTest_IgnoreUnknownShortOption()
     VerifyNonOptionArg(4, "non-opt-arg-2");
 }
 
-static void MissingValueTest_MissingShortOptionValue()
+TEST_F(TestCHIPArgParser, MissingShortOptionValue)
 {
     bool res;
 
@@ -642,7 +655,7 @@ static void MissingValueTest_MissingShortOptionValue()
     VerifyArgErrorContains(0, "-Z");
 }
 
-static void MissingValueTest_MissingLongOptionValue()
+TEST_F(TestCHIPArgParser, MissingLongOptionValue)
 {
     bool res;
 
@@ -760,51 +773,4 @@ static void ENFORCE_FORMAT(1, 2) HandleArgError(const char * msg, ...)
 
     sCallbackRecordCount++;
 }
-
-int TestCHIPArgParser()
-{
-    if (chip::Platform::MemoryInit() != CHIP_NO_ERROR)
-    {
-        return EXIT_FAILURE;
-    }
-
-    SimpleParseTest_SingleLongOption();
-    SimpleParseTest_SingleShortOption();
-    SimpleParseTest_SingleLongOptionWithValue();
-    SimpleParseTest_SingleShortOptionWithValue();
-    SimpleParseTest_VariousShortAndLongWithArgs();
-
-    UnknownOptionTest_UnknownShortOption();
-    UnknownOptionTest_UnknownLongOption();
-    UnknownOptionTest_UnknownShortOptionAfterArgs();
-    UnknownOptionTest_UnknownShortOptionAfterKnown();
-    UnknownOptionTest_UnknownShortOptionBeforeKnown();
-    UnknownOptionTest_UnknownLongOptionAfterArgs();
-    UnknownOptionTest_IgnoreUnknownShortOption();
-
-    /* Skip this test because the parser successfully captures all the options
-       but the error reporting is incorrect in this case due to long_opt limitations */
-#ifndef CHIP_CONFIG_NON_POSIX_LONG_OPT
-    UnknownOptionTest_IgnoreUnknownLongOption();
-#endif // !CHIP_CONFIG_NON_POSIX_LONG_OPT
-
-    MissingValueTest_MissingShortOptionValue();
-    MissingValueTest_MissingLongOptionValue();
-
-    ClearCallbackRecords();
-
-    printf("All tests succeeded\n");
-
-    chip::Platform::MemoryShutdown();
-
-    return (EXIT_SUCCESS);
-}
-#else  // CHIP_CONFIG_ENABLE_ARG_PARSER
-int TestCHIPArgParser(void)
-{
-    printf("No tests were run\n");
-    return (EXIT_SUCCESS);
-}
-#endif // CHIP_CONFIG_ENABLE_ARG_PARSER
-
-CHIP_REGISTER_TEST_SUITE(TestCHIPArgParser);
+#endif // CHIP_CONFIG_ENABLE_ARG_PARSER;

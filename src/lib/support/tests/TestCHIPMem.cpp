@@ -29,21 +29,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <gtest/gtest.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
 
 using namespace chip;
 using namespace chip::Logging;
 using namespace chip::Platform;
 
+class TestCHIPMem : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
 // =================================
 //      Unit tests
 // =================================
 
-static void TestMemAlloc_Malloc(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, Malloc)
 {
     char * p1 = nullptr;
     char * p2 = nullptr;
@@ -51,52 +57,52 @@ static void TestMemAlloc_Malloc(nlTestSuite * inSuite, void * inContext)
 
     // Verify long-term allocation
     p1 = static_cast<char *>(MemoryAlloc(64));
-    NL_TEST_ASSERT(inSuite, p1 != nullptr);
+    EXPECT_TRUE(p1 != nullptr);
 
     p2 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p2 != nullptr);
+    EXPECT_TRUE(p2 != nullptr);
 
     chip::Platform::MemoryFree(p1);
     chip::Platform::MemoryFree(p2);
 
     // Verify short-term allocation
     p1 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p1 != nullptr);
+    EXPECT_TRUE(p1 != nullptr);
 
     p2 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p2 != nullptr);
+    EXPECT_TRUE(p2 != nullptr);
 
     p3 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p3 != nullptr);
+    EXPECT_TRUE(p3 != nullptr);
 
     chip::Platform::MemoryFree(p1);
     chip::Platform::MemoryFree(p2);
     chip::Platform::MemoryFree(p3);
 }
 
-static void TestMemAlloc_Calloc(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, Calloc)
 {
     char * p = static_cast<char *>(MemoryCalloc(128, true));
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, p != nullptr);
+    ASSERT_TRUE(p != nullptr);
 
     for (int i = 0; i < 128; i++)
-        NL_TEST_ASSERT(inSuite, p[i] == 0);
+        EXPECT_TRUE(p[i] == 0);
 
     chip::Platform::MemoryFree(p);
 }
 
-static void TestMemAlloc_Realloc(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, Realloc)
 {
     char * pa = static_cast<char *>(MemoryAlloc(128));
-    NL_TEST_ASSERT(inSuite, pa != nullptr);
+    EXPECT_TRUE(pa != nullptr);
 
     char * pb = static_cast<char *>(MemoryRealloc(pa, 256));
-    NL_TEST_ASSERT(inSuite, pb != nullptr);
+    EXPECT_TRUE(pb != nullptr);
 
     chip::Platform::MemoryFree(pb);
 }
 
-static void TestMemAlloc_UniquePtr(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, UniquePtr)
 {
     // UniquePtr is a wrapper of std::unique_ptr for platform allocators, we just check if we created a correct wrapper here.
     int constructorCalled = 0;
@@ -114,15 +120,15 @@ static void TestMemAlloc_UniquePtr(nlTestSuite * inSuite, void * inContext)
 
     {
         auto ptr = MakeUnique<Cls>(&constructorCalled, &destructorCalled);
-        NL_TEST_ASSERT(inSuite, constructorCalled == 1);
-        NL_TEST_ASSERT(inSuite, destructorCalled == 0);
+        EXPECT_TRUE(constructorCalled == 1);
+        EXPECT_TRUE(destructorCalled == 0);
         IgnoreUnusedVariable(ptr);
     }
 
-    NL_TEST_ASSERT(inSuite, destructorCalled == 1);
+    EXPECT_TRUE(destructorCalled == 1);
 }
 
-static void TestMemAlloc_SharedPtr(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, SharedPtr)
 {
     // SharedPtr is a wrapper of std::shared_ptr for platform allocators.
     int instanceConstructorCalled      = 0;
@@ -145,62 +151,21 @@ static void TestMemAlloc_SharedPtr(nlTestSuite * inSuite, void * inContext)
     SharedPtr<Cls> otherReference;
     {
         auto ptr = MakeShared<Cls>(&instanceConstructorCalled, &instanceDestructorCalled);
-        NL_TEST_ASSERT(inSuite, instanceConstructorCalled == 1);
+        EXPECT_TRUE(instanceConstructorCalled == 1);
         // Capture a shared reference so we aren't destructed when we leave this scope.
         otherReference = ptr;
     }
 
     // Verify that by sharing to otherReference, we weren't destructed.
-    NL_TEST_ASSERT(inSuite, instanceDestructorCalled == 0);
+    EXPECT_TRUE(instanceDestructorCalled == 0);
 
     // Now drop our reference.
     otherReference = MakeShared<Cls>(&otherInstanceConstructorCalled, &otherInstanceDestructorCalled);
 
     // Verify that the new instance was constructed and the first instance was
     // destructed, and that we retain a reference to the new instance.
-    NL_TEST_ASSERT(inSuite, instanceConstructorCalled == 1);
-    NL_TEST_ASSERT(inSuite, instanceDestructorCalled == 1);
-    NL_TEST_ASSERT(inSuite, otherInstanceConstructorCalled == 1);
-    NL_TEST_ASSERT(inSuite, otherInstanceDestructorCalled == 0);
+    EXPECT_TRUE(instanceConstructorCalled == 1);
+    EXPECT_TRUE(instanceDestructorCalled == 1);
+    EXPECT_TRUE(otherInstanceConstructorCalled == 1);
+    EXPECT_TRUE(otherInstanceDestructorCalled == 0);
 }
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-static const nlTest sTests[] = { NL_TEST_DEF("Test MemAlloc::Malloc", TestMemAlloc_Malloc),
-                                 NL_TEST_DEF("Test MemAlloc::Calloc", TestMemAlloc_Calloc),
-                                 NL_TEST_DEF("Test MemAlloc::Realloc", TestMemAlloc_Realloc),
-                                 NL_TEST_DEF("Test MemAlloc::UniquePtr", TestMemAlloc_UniquePtr),
-                                 NL_TEST_DEF("Test MemAlloc::SharedPtr", TestMemAlloc_SharedPtr),
-                                 NL_TEST_SENTINEL() };
-
-/**
- *  Set up the test suite.
- */
-int TestMemAlloc_Setup(void * inContext)
-{
-    CHIP_ERROR error = MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return (FAILURE);
-    return (SUCCESS);
-}
-
-/**
- *  Tear down the test suite.
- */
-int TestMemAlloc_Teardown(void * inContext)
-{
-    MemoryShutdown();
-    return (SUCCESS);
-}
-
-int TestMemAlloc()
-{
-    nlTestSuite theSuite = { "CHIP Memory Allocation tests", &sTests[0], TestMemAlloc_Setup, TestMemAlloc_Teardown };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestMemAlloc)

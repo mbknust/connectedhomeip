@@ -35,7 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 #include <CHIPVersion.h>
 #include <lib/support/Base64.h>
@@ -46,7 +46,7 @@
 #include <lib/support/PersistedCounter.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <platform/ConfigurationManager.h>
 #include <platform/PersistedStorage.h>
 
@@ -64,7 +64,23 @@ struct TestPersistedCounterContext
 
 TestPersistedCounterContext::TestPersistedCounterContext() : mVerbose(false) {}
 
-static void InitializePersistedStorage(TestPersistedCounterContext * context)
+class TestPersistedCounter : public ::testing::Test
+{
+public:
+    static void TearDownTestSuite()
+    {
+        if (sPersistentStore != nullptr)
+        {
+            delete sPersistentStore;
+            sPersistentStore = nullptr;
+        }
+    }
+    static TestPersistedCounterContext ctx;
+};
+
+TestPersistedCounterContext TestPersistedCounter::ctx;
+
+static void InitializePersistedStorage()
 {
     if (sPersistentStore != nullptr)
     {
@@ -74,26 +90,9 @@ static void InitializePersistedStorage(TestPersistedCounterContext * context)
     sPersistentStore = new chip::TestPersistentStorageDelegate;
 }
 
-static int TestSetup(void * inContext)
+TEST_F(TestPersistedCounter, CheckOOB)
 {
-    return SUCCESS;
-}
-
-static int TestTeardown(void * inContext)
-{
-    if (sPersistentStore != nullptr)
-    {
-        delete sPersistentStore;
-        sPersistentStore = nullptr;
-    }
-    return SUCCESS;
-}
-
-static void CheckOOB(nlTestSuite * inSuite, void * inContext)
-{
-    TestPersistedCounterContext * context = static_cast<TestPersistedCounterContext *>(inContext);
-
-    InitializePersistedStorage(context);
+    InitializePersistedStorage();
 
     // When initializing the first time out of the box, we should have
     // a count of 0 and a value of 0x10000 for the next starting value
@@ -102,17 +101,15 @@ static void CheckOOB(nlTestSuite * inSuite, void * inContext)
     chip::PersistedCounter<uint64_t> counter;
 
     CHIP_ERROR err = counter.Init(sPersistentStore, chip::DefaultStorageKeyAllocator::IMEventNumber(), 0x10000);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     auto value = counter.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0);
+    EXPECT_TRUE(value == 0);
 }
 
-static void CheckReboot(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestPersistedCounter, CheckReboot)
 {
-    TestPersistedCounterContext * context = static_cast<TestPersistedCounterContext *>(inContext);
-
-    InitializePersistedStorage(context);
+    InitializePersistedStorage();
 
     chip::PersistedCounter<uint64_t> counter, counter2;
 
@@ -120,25 +117,23 @@ static void CheckReboot(nlTestSuite * inSuite, void * inContext)
     // a count of 0.
 
     CHIP_ERROR err = counter.Init(sPersistentStore, chip::DefaultStorageKeyAllocator::IMEventNumber(), 0x10000);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     auto value = counter.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0);
+    EXPECT_TRUE(value == 0);
 
     // Now we "reboot", and we should get a count of 0x10000.
 
     err = counter2.Init(sPersistentStore, chip::DefaultStorageKeyAllocator::IMEventNumber(), 0x10000);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     value = counter2.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0x10000);
+    EXPECT_TRUE(value == 0x10000);
 }
 
-static void CheckWriteNextCounterStart(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestPersistedCounter, CheckWriteNextCounterStart)
 {
-    TestPersistedCounterContext * context = static_cast<TestPersistedCounterContext *>(inContext);
-
-    InitializePersistedStorage(context);
+    InitializePersistedStorage();
 
     chip::PersistedCounter<uint64_t> counter;
 
@@ -146,10 +141,10 @@ static void CheckWriteNextCounterStart(nlTestSuite * inSuite, void * inContext)
     // a count of 0.
 
     CHIP_ERROR err = counter.Init(sPersistentStore, chip::DefaultStorageKeyAllocator::IMEventNumber(), 0x10000);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     auto value = counter.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0);
+    EXPECT_TRUE(value == 0);
 
     // Verify that we write out the next starting counter value after
     // we've exhausted the counter's range.
@@ -157,39 +152,18 @@ static void CheckWriteNextCounterStart(nlTestSuite * inSuite, void * inContext)
     for (int32_t i = 0; i < 0x10000; i++)
     {
         err = counter.Advance();
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
     }
 
     value = counter.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0x10000);
+    EXPECT_TRUE(value == 0x10000);
 
     for (int32_t i = 0; i < 0x10000; i++)
     {
         err = counter.Advance();
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        EXPECT_TRUE(err == CHIP_NO_ERROR);
     }
 
     value = counter.GetValue();
-    NL_TEST_ASSERT(inSuite, value == 0x20000);
+    EXPECT_TRUE(value == 0x20000);
 }
-
-// Test Suite
-
-/**
- *  Test Suite that lists all the test functions.
- */
-static const nlTest sTests[] = {
-    NL_TEST_DEF("Out of box Test", CheckOOB),                                 //
-    NL_TEST_DEF("Reboot Test", CheckReboot),                                  //
-    NL_TEST_DEF("Write Next Counter Start Test", CheckWriteNextCounterStart), //
-    NL_TEST_SENTINEL()                                                        //
-};
-
-int TestPersistedCounter()
-{
-    nlTestSuite theSuite = { "chip-persisted-storage", &sTests[0], TestSetup, TestTeardown };
-
-    return chip::ExecuteTestsWithContext<TestPersistedCounterContext>(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestPersistedCounter);

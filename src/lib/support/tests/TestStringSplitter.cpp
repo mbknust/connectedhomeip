@@ -15,15 +15,14 @@
  *    limitations under the License.
  */
 #include <lib/support/StringSplitter.h>
-#include <lib/support/UnitTestRegistration.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 namespace {
 
 using namespace chip;
 
-void TestStrdupSplitter(nlTestSuite * inSuite, void * inContext)
+TEST(TestStringSplitter, TestStrdupSplitter)
 {
     CharSpan out;
 
@@ -32,122 +31,106 @@ void TestStrdupSplitter(nlTestSuite * inSuite, void * inContext)
         StringSplitter splitter("", ',');
 
         // next stays at nullptr
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
     }
 
     // single item
     {
         StringSplitter splitter("single", ',');
 
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("single")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("single")));
 
         // next stays at nullptr also after valid data
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
     }
 
     // multi-item
     {
         StringSplitter splitter("one,two,three", ',');
 
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("one")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("two")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("three")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data() == nullptr);
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("one")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("two")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("three")));
+        EXPECT_TRUE(!splitter.Next(out));
+        EXPECT_TRUE(out.data() == nullptr);
     }
 
     // mixed
     {
         StringSplitter splitter("a**bc*d,e*f", '*');
 
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("a")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("bc")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("d,e")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("f")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("a")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("bc")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("d,e")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("f")));
+        EXPECT_TRUE(!splitter.Next(out));
     }
 
     // some edge cases
     {
         StringSplitter splitter(",", ',');
         // Note that even though "" is nullptr right away, "," becomes two empty strings
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(!splitter.Next(out));
     }
     {
         StringSplitter splitter("log,", ',');
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("log")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("log")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(!splitter.Next(out));
     }
     {
         StringSplitter splitter(",log", ',');
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("log")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("log")));
+        EXPECT_TRUE(!splitter.Next(out));
     }
     {
         StringSplitter splitter(",,,", ',');
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, splitter.Next(out));
-        NL_TEST_ASSERT(inSuite, out.data_equal(CharSpan::fromCharString("")));
-        NL_TEST_ASSERT(inSuite, !splitter.Next(out));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(splitter.Next(out));
+        EXPECT_TRUE(out.data_equal(CharSpan::fromCharString("")));
+        EXPECT_TRUE(!splitter.Next(out));
     }
 }
 
-void TestNullResilience(nlTestSuite * inSuite, void * inContext)
+TEST(TestStringSplitter, TestNullResilience)
 {
     {
         StringSplitter splitter(nullptr, ',');
         CharSpan span;
-        NL_TEST_ASSERT(inSuite, !splitter.Next(span));
-        NL_TEST_ASSERT(inSuite, span.data() == nullptr);
+        EXPECT_TRUE(!splitter.Next(span));
+        EXPECT_TRUE(span.data() == nullptr);
     }
 }
-
-const nlTest sTests[] = {
-    NL_TEST_DEF("TestSplitter", TestStrdupSplitter),       //
-    NL_TEST_DEF("TestNullResilience", TestNullResilience), //
-    NL_TEST_SENTINEL()                                     //
-};
-
 } // namespace
-
-int TestStringSplitter()
-{
-    nlTestSuite theSuite = { "StringSplitter", sTests, nullptr, nullptr };
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestStringSplitter)
