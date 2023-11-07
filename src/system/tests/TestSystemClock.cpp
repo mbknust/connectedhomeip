@@ -21,11 +21,11 @@
 
 #include <system/SystemConfig.h>
 
+#include <gtest/gtest.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
+
 #include <system/SystemClock.h>
 
 #if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
@@ -45,18 +45,18 @@ using namespace chip::System;
 
 namespace {
 
-void TestRealClock(nlTestSuite * inSuite, void * inContext)
+TEST(TestSystemClock, TestRealClock)
 {
     Clock::Milliseconds64 oldMilli = SystemClock().GetMonotonicMilliseconds64();
     Clock::Milliseconds64 newMilli = SystemClock().GetMonotonicMilliseconds64();
-    NL_TEST_ASSERT(inSuite, newMilli >= oldMilli);
+    EXPECT_TRUE(newMilli >= oldMilli);
 
     Clock::Microseconds64 oldMicro = SystemClock().GetMonotonicMicroseconds64();
     Clock::Microseconds64 newMicro = SystemClock().GetMonotonicMicroseconds64();
-    NL_TEST_ASSERT(inSuite, newMicro >= oldMicro);
+    EXPECT_TRUE(newMicro >= oldMicro);
 
     Clock::Microseconds64::rep microseconds = newMicro.count();
-    NL_TEST_ASSERT(inSuite, (microseconds & 0x8000'0000'0000'0000) == 0);
+    EXPECT_TRUE((microseconds & 0x8000'0000'0000'0000) == 0);
 
 #if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME &&                                                                                  \
     (CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME || CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS)
@@ -74,57 +74,31 @@ void TestRealClock(nlTestSuite * inSuite, void * inContext)
 #endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
 
     newMilli = SystemClock().GetMonotonicMilliseconds64();
-    NL_TEST_ASSERT(inSuite, newMilli > oldMilli);
+    EXPECT_TRUE(newMilli > oldMilli);
 
     newMicro = SystemClock().GetMonotonicMicroseconds64();
-    NL_TEST_ASSERT(inSuite, newMicro > oldMicro);
+    EXPECT_TRUE(newMicro > oldMicro);
 
 #endif // !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME && (CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME ||
        // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS)
 }
 
-void TestMockClock(nlTestSuite * inSuite, void * inContext)
+TEST(TestSystemClock, TestMockClock)
 {
     Clock::Internal::MockClock clock;
 
     Clock::ClockBase * savedRealClock = &SystemClock();
     Clock::Internal::SetSystemClockForTesting(&clock);
 
-    NL_TEST_ASSERT(inSuite, SystemClock().GetMonotonicMilliseconds64() == Clock::kZero);
-    NL_TEST_ASSERT(inSuite, SystemClock().GetMonotonicMicroseconds64() == Clock::kZero);
+    EXPECT_TRUE(SystemClock().GetMonotonicMilliseconds64() == Clock::kZero);
+    EXPECT_TRUE(SystemClock().GetMonotonicMicroseconds64() == Clock::kZero);
 
     constexpr Clock::Milliseconds64 k1234 = Clock::Milliseconds64(1234);
     clock.SetMonotonic(k1234);
-    NL_TEST_ASSERT(inSuite, SystemClock().GetMonotonicMilliseconds64() == k1234);
-    NL_TEST_ASSERT(inSuite, SystemClock().GetMonotonicMicroseconds64() == k1234);
+    EXPECT_TRUE(SystemClock().GetMonotonicMilliseconds64() == k1234);
+    EXPECT_TRUE(SystemClock().GetMonotonicMicroseconds64() == k1234);
 
     Clock::Internal::SetSystemClockForTesting(savedRealClock);
 }
 
 } // namespace
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestRealClock", TestRealClock),
-    NL_TEST_DEF("TestMockClock", TestMockClock),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestSystemClock()
-{
-    nlTestSuite theSuite = {
-        "chip-systemclock", &sTests[0], nullptr /* setup */, nullptr /* teardown */
-    };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr /* context */);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestSystemClock)

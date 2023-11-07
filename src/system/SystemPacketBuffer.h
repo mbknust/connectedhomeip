@@ -44,6 +44,7 @@
 #include <lwip/pbuf.h>
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
+class TestSystemPacketBuffer;
 class PacketBufferTest;
 
 namespace chip {
@@ -392,6 +393,7 @@ private:
     const uint8_t * ReserveStart() const;
 
     friend class PacketBufferHandle;
+    friend class ::TestSystemPacketBuffer;
     friend class ::PacketBufferTest;
 };
 
@@ -696,6 +698,7 @@ private:
     PacketBuffer * mBuffer;
 
     friend class PacketBuffer;
+    friend class ::TestSystemPacketBuffer;
     friend class ::PacketBufferTest;
 };
 

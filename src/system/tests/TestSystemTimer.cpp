@@ -29,11 +29,11 @@
 
 #include <system/SystemConfig.h>
 
+#include <gtest/gtest.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
-#include <nlunit-test.h>
+
 #include <system/SystemError.h>
 #include <system/SystemLayerImpl.h>
 
@@ -49,6 +49,9 @@
 
 using chip::ErrorStr;
 using namespace chip::System;
+
+namespace chip {
+namespace System {
 
 template <class LayerImpl, typename Enable = void>
 class LayerEvents
@@ -102,13 +105,12 @@ class TestContext
 {
 public:
     Layer * mLayer;
-    nlTestSuite * mTestSuite;
     chip::Callback::Callback<> mGreedyTimer; // for greedy timer
     uint32_t mNumTimersHandled;
 
     void GreedyTimer()
     {
-        NL_TEST_ASSERT(mTestSuite, mNumTimersHandled < MAX_NUM_TIMERS);
+        EXPECT_TRUE(mNumTimersHandled < MAX_NUM_TIMERS);
 
         if (mNumTimersHandled >= MAX_NUM_TIMERS)
         {
@@ -128,6 +130,25 @@ public:
 
 static TestContext * gCurrentTestContext = nullptr;
 
+static int TestSetup(void * aContext);
+static int TestTeardown(void * aContext);
+
+class TestSystemTimer : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { TestSetup(&ctx); }
+    static void TearDownTestSuite() { TestTeardown(&ctx); }
+    static TestContext ctx;
+
+    static void CheckTimerPool();
+};
+
+TestContext TestSystemTimer::ctx;
+
+#define STATIC_TEST(test_fixture, test_name)                                                                                       \
+    TEST_F(test_fixture, test_name) { test_fixture::test_name(); }                                                                 \
+    void test_fixture::test_name()
+
 class ScopedGlobalTestContext
 {
 public:
@@ -141,8 +162,7 @@ static volatile bool sOverflowTestDone;
 
 void TimerFailed(void * aState)
 {
-    TestContext * lContext = static_cast<TestContext *>(aState);
-    NL_TEST_ASSERT(lContext->mTestSuite, false);
+    ASSERT_TRUE(false);
     sOverflowTestDone = true;
 }
 
@@ -154,12 +174,10 @@ void HandleTimerFailed(Layer * systemLayer, void * aState)
 
 void HandleTimer10Success(Layer * systemLayer, void * aState)
 {
-    TestContext & lContext = *static_cast<TestContext *>(aState);
-    NL_TEST_ASSERT(lContext.mTestSuite, true);
     sOverflowTestDone = true;
 }
 
-static void CheckOverflow(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, CheckOverflow)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
@@ -167,29 +185,28 @@ static void CheckOverflow(nlTestSuite * inSuite, void * aContext)
     chip::System::Clock::Milliseconds32 timeout_overflow_0ms = chip::System::Clock::Milliseconds32(652835029);
     chip::System::Clock::Milliseconds32 timeout_10ms         = chip::System::Clock::Milliseconds32(10);
 
-    TestContext & lContext = *static_cast<TestContext *>(aContext);
+    TestContext & lContext = TestSystemTimer::ctx;
     Layer & lSys           = *lContext.mLayer;
 
     sOverflowTestDone = false;
 
-    lSys.StartTimer(timeout_overflow_0ms, HandleTimerFailed, aContext);
-    lSys.StartTimer(timeout_10ms, HandleTimer10Success, aContext);
+    lSys.StartTimer(timeout_overflow_0ms, HandleTimerFailed, &lContext);
+    lSys.StartTimer(timeout_10ms, HandleTimer10Success, &lContext);
 
     while (!sOverflowTestDone)
     {
         LayerEvents<LayerImpl>::ServiceEvents(lSys);
     }
 
-    lSys.CancelTimer(HandleTimerFailed, aContext);
+    lSys.CancelTimer(HandleTimerFailed, &lContext);
     // cb  timer is cancelled by destructor
-    lSys.CancelTimer(HandleTimer10Success, aContext);
+    lSys.CancelTimer(HandleTimer10Success, &lContext);
 }
 
 void HandleGreedyTimer(Layer * aLayer, void * aState)
 {
     static uint32_t sNumTimersHandled = 0;
-    TestContext & lContext            = *static_cast<TestContext *>(aState);
-    NL_TEST_ASSERT(lContext.mTestSuite, sNumTimersHandled < MAX_NUM_TIMERS);
+    ASSERT_TRUE(sNumTimersHandled < MAX_NUM_TIMERS);
 
     if (sNumTimersHandled >= MAX_NUM_TIMERS)
     {
@@ -200,27 +217,26 @@ void HandleGreedyTimer(Layer * aLayer, void * aState)
     sNumTimersHandled++;
 }
 
-static void CheckStarvation(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, CheckStarvation)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
 
-    TestContext & lContext = *static_cast<TestContext *>(aContext);
+    TestContext & lContext = TestSystemTimer::ctx;
     Layer & lSys           = *lContext.mLayer;
 
-    lSys.StartTimer(chip::System::Clock::kZero, HandleGreedyTimer, aContext);
+    lSys.StartTimer(chip::System::Clock::kZero, HandleGreedyTimer, &lContext);
 
     LayerEvents<LayerImpl>::ServiceEvents(lSys);
 }
 
-static void CheckOrder(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, CheckOrder)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
 
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
 
     struct TestState
     {
@@ -240,7 +256,7 @@ static void CheckOrder(nlTestSuite * inSuite, void * aContext)
         char record[5] = { 0 };
     };
     TestState testState;
-    NL_TEST_ASSERT(suite, testState.record[0] == 0);
+    EXPECT_TRUE(testState.record[0] == 0);
 
     Clock::ClockBase * const savedClock = &SystemClock();
     Clock::Internal::MockClock mockClock;
@@ -253,27 +269,26 @@ static void CheckOrder(nlTestSuite * inSuite, void * aContext)
     systemLayer.StartTimer(0_ms, TestState::A, &testState);
 
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "A") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "A") == 0);
 
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "AB") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "AB") == 0);
 
     mockClock.AdvanceMonotonic(200_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "ABCD") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "ABCD") == 0);
 
     Clock::Internal::SetSystemClockForTesting(savedClock);
 }
 
-static void CheckCancellation(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, CheckCancellation)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
 
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
 
     struct TestState
     {
@@ -309,7 +324,7 @@ static void CheckCancellation(nlTestSuite * inSuite, void * aContext)
         Layer & mSystemLayer;
     };
     TestState testState(systemLayer);
-    NL_TEST_ASSERT(suite, testState.record[0] == 0);
+    EXPECT_TRUE(testState.record[0] == 0);
 
     Clock::ClockBase * const savedClock = &SystemClock();
     Clock::Internal::MockClock mockClock;
@@ -324,14 +339,10 @@ static void CheckCancellation(nlTestSuite * inSuite, void * aContext)
 
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "AC") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "AC") == 0);
 
     Clock::Internal::SetSystemClockForTesting(savedClock);
 }
-
-namespace {
-
-namespace CancelTimerTest {
 
 // A bit lower than maximum system timers just in case, for systems that
 // have some form of limit
@@ -339,11 +350,11 @@ constexpr unsigned kCancelTimerCount = CHIP_SYSTEM_CONFIG_NUM_TIMERS - 4;
 int gCallbackProcessed[kCancelTimerCount];
 
 /// Validates that gCallbackProcessed has valid values (0 or 1)
-void ValidateExecutedTimerCounts(nlTestSuite * suite)
+void ValidateExecutedTimerCounts()
 {
     for (int processed : gCallbackProcessed)
     {
-        NL_TEST_ASSERT(suite, (processed == 0) || (processed == 1));
+        EXPECT_TRUE((processed == 0) || (processed == 1));
     }
 }
 
@@ -386,7 +397,7 @@ void Callback(Layer * layer, void * state)
     }
 }
 
-void Test(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, Test)
 {
     // Validates that timers can cancel other timers. Generally the test will
     // do the following:
@@ -399,11 +410,10 @@ void Test(nlTestSuite * inSuite, void * aContext)
     //         other timers, even if they are expiring at the same time)
     memset(gCallbackProcessed, 0, sizeof(gCallbackProcessed));
 
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     ScopedGlobalTestContext testScope(&testContext);
 
-    Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
+    Layer & systemLayer = *testContext.mLayer;
 
     Clock::ClockBase * const savedClock = &SystemClock();
     Clock::Internal::MockClock mockClock;
@@ -412,42 +422,27 @@ void Test(nlTestSuite * inSuite, void * aContext)
 
     for (unsigned i = 0; i < kCancelTimerCount; i++)
     {
-        NL_TEST_ASSERT(
-            suite, systemLayer.StartTimer(10_ms, Callback, reinterpret_cast<void *>(static_cast<uintptr_t>(i))) == CHIP_NO_ERROR);
+        EXPECT_TRUE(systemLayer.StartTimer(10_ms, Callback, reinterpret_cast<void *>(static_cast<uintptr_t>(i))) == CHIP_NO_ERROR);
     }
 
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    ValidateExecutedTimerCounts(suite);
-    NL_TEST_ASSERT(suite, ExecutedTimerCount() == 0);
+    ValidateExecutedTimerCounts();
+    EXPECT_TRUE(ExecutedTimerCount() == 0);
 
     mockClock.AdvanceMonotonic(20_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
 
-    ValidateExecutedTimerCounts(suite);
-    NL_TEST_ASSERT(suite, ExecutedTimerCount() == kCancelTimerCount);
+    ValidateExecutedTimerCounts();
+    EXPECT_TRUE(ExecutedTimerCount() == kCancelTimerCount);
 
     Clock::Internal::SetSystemClockForTesting(savedClock);
 }
 
-} // namespace CancelTimerTest
-} // namespace
-
 // Test the implementation helper classes TimerPool, TimerList, and TimerData.
-namespace chip {
-namespace System {
-class TestTimer
+STATIC_TEST(TestSystemTimer, CheckTimerPool)
 {
-public:
-    static void CheckTimerPool(nlTestSuite * inSuite, void * aContext);
-};
-} // namespace System
-} // namespace chip
-
-void chip::System::TestTimer::CheckTimerPool(nlTestSuite * inSuite, void * aContext)
-{
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
 
     using Timer = TimerList::Node;
     struct TestState
@@ -472,11 +467,11 @@ void chip::System::TestTimer::CheckTimerPool(nlTestSuite * inSuite, void * aCont
     };
 
     TimerPool<Timer> pool;
-    NL_TEST_ASSERT(suite, pool.mTimerPool.Allocated() == 0);
+    EXPECT_TRUE(pool.mTimerPool.Allocated() == 0);
     SYSTEM_STATS_RESET(Stats::kSystemLayer_NumTimers);
     SYSTEM_STATS_RESET_HIGH_WATER_MARK_FOR_TESTING(Stats::kSystemLayer_NumTimers);
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 0));
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_HIGH_WATER_MARK(Stats::kSystemLayer_NumTimers, 0));
+    EXPECT_TRUE(SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 0));
+    EXPECT_TRUE(SYSTEM_STATS_TEST_HIGH_WATER_MARK(Stats::kSystemLayer_NumTimers, 0));
 
     // Test TimerPool::Create() and TimerData accessors.
 
@@ -484,110 +479,109 @@ void chip::System::TestTimer::CheckTimerPool(nlTestSuite * inSuite, void * aCont
     {
         timer.timer = pool.Create(systemLayer, timer.awakenTime, timer.onComplete, &testState);
     }
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 4));
+    EXPECT_TRUE(SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 4));
 
     for (auto & timer : testTimer)
     {
-        NL_TEST_ASSERT(suite, timer.timer != nullptr);
-        NL_TEST_ASSERT(suite, timer.timer->AwakenTime() == timer.awakenTime);
-        NL_TEST_ASSERT(suite, timer.timer->GetCallback().GetOnComplete() == timer.onComplete);
-        NL_TEST_ASSERT(suite, timer.timer->GetCallback().GetAppState() == &testState);
-        NL_TEST_ASSERT(suite, timer.timer->GetCallback().GetSystemLayer() == &systemLayer);
+        EXPECT_TRUE(timer.timer != nullptr);
+        EXPECT_TRUE(timer.timer->AwakenTime() == timer.awakenTime);
+        EXPECT_TRUE(timer.timer->GetCallback().GetOnComplete() == timer.onComplete);
+        EXPECT_TRUE(timer.timer->GetCallback().GetAppState() == &testState);
+        EXPECT_TRUE(timer.timer->GetCallback().GetSystemLayer() == &systemLayer);
     }
 
     // Test TimerList operations.
 
     TimerList list;
-    NL_TEST_ASSERT(suite, list.Remove(nullptr) == nullptr);
-    NL_TEST_ASSERT(suite, list.Remove(nullptr, nullptr) == nullptr);
-    NL_TEST_ASSERT(suite, list.PopEarliest() == nullptr);
-    NL_TEST_ASSERT(suite, list.PopIfEarlier(500_ms) == nullptr);
-    NL_TEST_ASSERT(suite, list.Earliest() == nullptr);
-    NL_TEST_ASSERT(suite, list.Empty());
+    EXPECT_TRUE(list.Remove(nullptr) == nullptr);
+    EXPECT_TRUE(list.Remove(nullptr, nullptr) == nullptr);
+    EXPECT_TRUE(list.PopEarliest() == nullptr);
+    EXPECT_TRUE(list.PopIfEarlier(500_ms) == nullptr);
+    EXPECT_TRUE(list.Earliest() == nullptr);
+    EXPECT_TRUE(list.Empty());
 
     Timer * earliest = list.Add(testTimer[0].timer); // list: () → (0) returns: 0
-    NL_TEST_ASSERT(suite, earliest == testTimer[0].timer);
-    NL_TEST_ASSERT(suite, list.PopIfEarlier(10_ms) == nullptr);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[0].timer);
-    NL_TEST_ASSERT(suite, !list.Empty());
+    EXPECT_TRUE(earliest == testTimer[0].timer);
+    EXPECT_TRUE(list.PopIfEarlier(10_ms) == nullptr);
+    EXPECT_TRUE(list.Earliest() == testTimer[0].timer);
+    EXPECT_TRUE(!list.Empty());
 
     earliest = list.Add(testTimer[1].timer); // list: (0) → (1 0) returns: 1
-    NL_TEST_ASSERT(suite, earliest == testTimer[1].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[1].timer);
+    EXPECT_TRUE(earliest == testTimer[1].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[1].timer);
 
     earliest = list.Add(testTimer[2].timer); // list: (1 0) → (1 0 2) returns: 1
-    NL_TEST_ASSERT(suite, earliest == testTimer[1].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[1].timer);
+    EXPECT_TRUE(earliest == testTimer[1].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[1].timer);
 
     earliest = list.Add(testTimer[3].timer); // list: (1 0 2) → (1 0 2 3) returns: 1
-    NL_TEST_ASSERT(suite, earliest == testTimer[1].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[1].timer);
+    EXPECT_TRUE(earliest == testTimer[1].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[1].timer);
 
     earliest = list.Remove(earliest); // list: (1 0 2 3) → (0 2 3) returns: 0
-    NL_TEST_ASSERT(suite, earliest == testTimer[0].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[0].timer);
+    EXPECT_TRUE(earliest == testTimer[0].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[0].timer);
 
     earliest = list.Remove(TestState::Reset, &testState); // list: (0 2 3) → (0 3) returns: 2
-    NL_TEST_ASSERT(suite, earliest == testTimer[2].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[0].timer);
+    EXPECT_TRUE(earliest == testTimer[2].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[0].timer);
 
     earliest = list.PopEarliest(); // list: (0 3) → (3) returns: 0
-    NL_TEST_ASSERT(suite, earliest == testTimer[0].timer);
-    NL_TEST_ASSERT(suite, list.Earliest() == testTimer[3].timer);
+    EXPECT_TRUE(earliest == testTimer[0].timer);
+    EXPECT_TRUE(list.Earliest() == testTimer[3].timer);
 
     earliest = list.PopIfEarlier(10_ms); // list: (3) → (3) returns: nullptr
-    NL_TEST_ASSERT(suite, earliest == nullptr);
+    EXPECT_TRUE(earliest == nullptr);
 
     earliest = list.PopIfEarlier(500_ms); // list: (3) → () returns: 3
-    NL_TEST_ASSERT(suite, earliest == testTimer[3].timer);
-    NL_TEST_ASSERT(suite, list.Empty());
+    EXPECT_TRUE(earliest == testTimer[3].timer);
+    EXPECT_TRUE(list.Empty());
 
     earliest = list.Add(testTimer[3].timer); // list: () → (3) returns: 3
     list.Clear();                            // list: (3) → ()
-    NL_TEST_ASSERT(suite, earliest == testTimer[3].timer);
-    NL_TEST_ASSERT(suite, list.Empty());
+    EXPECT_TRUE(earliest == testTimer[3].timer);
+    EXPECT_TRUE(list.Empty());
 
     for (auto & timer : testTimer)
     {
         list.Add(timer.timer);
     }
     TimerList early = list.ExtractEarlier(200_ms); // list: (1 0 2 3) → (2 3) returns: (1 0)
-    NL_TEST_ASSERT(suite, list.PopEarliest() == testTimer[2].timer);
-    NL_TEST_ASSERT(suite, list.PopEarliest() == testTimer[3].timer);
-    NL_TEST_ASSERT(suite, list.PopEarliest() == nullptr);
-    NL_TEST_ASSERT(suite, early.PopEarliest() == testTimer[1].timer);
-    NL_TEST_ASSERT(suite, early.PopEarliest() == testTimer[0].timer);
-    NL_TEST_ASSERT(suite, early.PopEarliest() == nullptr);
+    EXPECT_TRUE(list.PopEarliest() == testTimer[2].timer);
+    EXPECT_TRUE(list.PopEarliest() == testTimer[3].timer);
+    EXPECT_TRUE(list.PopEarliest() == nullptr);
+    EXPECT_TRUE(early.PopEarliest() == testTimer[1].timer);
+    EXPECT_TRUE(early.PopEarliest() == testTimer[0].timer);
+    EXPECT_TRUE(early.PopEarliest() == nullptr);
 
     // Test TimerPool::Invoke()
-    NL_TEST_ASSERT(suite, testState.count == 0);
+    EXPECT_TRUE(testState.count == 0);
     pool.Invoke(testTimer[0].timer);
     testTimer[0].timer = nullptr;
-    NL_TEST_ASSERT(suite, testState.count == 1);
-    NL_TEST_ASSERT(suite, pool.mTimerPool.Allocated() == 3);
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 3));
+    EXPECT_TRUE(testState.count == 1);
+    EXPECT_TRUE(pool.mTimerPool.Allocated() == 3);
+    EXPECT_TRUE(SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 3));
 
     // Test TimerPool::Release()
     pool.Release(testTimer[1].timer);
     testTimer[1].timer = nullptr;
-    NL_TEST_ASSERT(suite, testState.count == 1);
-    NL_TEST_ASSERT(suite, pool.mTimerPool.Allocated() == 2);
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 2));
+    EXPECT_TRUE(testState.count == 1);
+    EXPECT_TRUE(pool.mTimerPool.Allocated() == 2);
+    EXPECT_TRUE(SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 2));
 
     pool.ReleaseAll();
-    NL_TEST_ASSERT(suite, pool.mTimerPool.Allocated() == 0);
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 0));
-    NL_TEST_ASSERT(suite, SYSTEM_STATS_TEST_HIGH_WATER_MARK(Stats::kSystemLayer_NumTimers, 4));
+    EXPECT_TRUE(pool.mTimerPool.Allocated() == 0);
+    EXPECT_TRUE(SYSTEM_STATS_TEST_IN_USE(Stats::kSystemLayer_NumTimers, 0));
+    EXPECT_TRUE(SYSTEM_STATS_TEST_HIGH_WATER_MARK(Stats::kSystemLayer_NumTimers, 4));
 }
 
-static void ExtendTimerToTest(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, ExtendTimerToTest)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
 
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
 
     struct TestState
     {
@@ -607,7 +601,7 @@ static void ExtendTimerToTest(nlTestSuite * inSuite, void * aContext)
         char record[5] = { 0 };
     };
     TestState testState;
-    NL_TEST_ASSERT(suite, testState.record[0] == 0);
+    EXPECT_TRUE(testState.record[0] == 0);
 
     Clock::ClockBase * const savedClock = &SystemClock();
     Clock::Internal::MockClock mockClock;
@@ -622,7 +616,7 @@ static void ExtendTimerToTest(nlTestSuite * inSuite, void * aContext)
     systemLayer.ExtendTimerTo(100_ms, TestState::A, &testState);
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "A") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "A") == 0);
 
     // Timer B as 50ms remaining. ExtendTimerTo 25 should have no effect
     // Timer C as 100ms remaining. ExtendTimerTo 75ms should have no effect
@@ -633,32 +627,31 @@ static void ExtendTimerToTest(nlTestSuite * inSuite, void * aContext)
 
     mockClock.AdvanceMonotonic(25_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "A") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "A") == 0);
 
     mockClock.AdvanceMonotonic(25_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "AB") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "AB") == 0);
 
     // Timer D as 25ms remaining. Timer should be extend to a duration of 75ms
     systemLayer.ExtendTimerTo(75_ms, TestState::D, &testState);
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, strcmp(testState.record, "ABCD") == 0);
+    EXPECT_TRUE(strcmp(testState.record, "ABCD") == 0);
 
     Clock::Internal::SetSystemClockForTesting(savedClock);
 
     // Extending a timer by 0 ms permitted
-    NL_TEST_ASSERT(suite, systemLayer.ExtendTimerTo(0_ms, TestState::A, &testState) == CHIP_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(systemLayer.ExtendTimerTo(0_ms, TestState::A, &testState) == CHIP_ERROR_INVALID_ARGUMENT);
 }
 
-static void IsTimerActiveTest(nlTestSuite * inSuite, void * aContext)
+TEST_F(TestSystemTimer, IsTimerActiveTest)
 {
     if (!LayerEvents<LayerImpl>::HasServiceEvents())
         return;
 
-    TestContext & testContext = *static_cast<TestContext *>(aContext);
+    TestContext & testContext = TestSystemTimer::ctx;
     Layer & systemLayer       = *testContext.mLayer;
-    nlTestSuite * const suite = testContext.mTestSuite;
 
     struct TestState
     {
@@ -677,7 +670,7 @@ static void IsTimerActiveTest(nlTestSuite * inSuite, void * aContext)
         char record[4] = { 0 };
     };
     TestState testState;
-    NL_TEST_ASSERT(suite, testState.record[0] == 0);
+    EXPECT_TRUE(testState.record[0] == 0);
 
     Clock::ClockBase * const savedClock = &SystemClock();
     Clock::Internal::MockClock mockClock;
@@ -688,60 +681,27 @@ static void IsTimerActiveTest(nlTestSuite * inSuite, void * aContext)
     systemLayer.StartTimer(200_ms, TestState::B, &testState);
     systemLayer.StartTimer(300_ms, TestState::C, &testState);
 
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::A, &testState));
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::B, &testState));
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::C, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::A, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::B, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::C, &testState));
 
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::A, &testState) == false);
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::B, &testState));
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::C, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::A, &testState) == false);
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::B, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::C, &testState));
 
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::B, &testState) == false);
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::C, &testState));
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::B, &testState) == false);
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::C, &testState));
 
     mockClock.AdvanceMonotonic(100_ms);
     LayerEvents<LayerImpl>::ServiceEvents(systemLayer);
-    NL_TEST_ASSERT(suite, systemLayer.IsTimerActive(TestState::C, &testState) == false);
+    EXPECT_TRUE(systemLayer.IsTimerActive(TestState::C, &testState) == false);
 
     Clock::Internal::SetSystemClockForTesting(savedClock);
 }
-
-// Test Suite
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("Timer::TestOverflow",             CheckOverflow),
-    NL_TEST_DEF("Timer::TestTimerStarvation",      CheckStarvation),
-    NL_TEST_DEF("Timer::TestTimerOrder",           CheckOrder),
-    NL_TEST_DEF("Timer::TestTimerCancellation",    CheckCancellation),
-    NL_TEST_DEF("Timer::TestTimerPool",            chip::System::TestTimer::CheckTimerPool),
-    NL_TEST_DEF("Timer::TestCancelTimer",          CancelTimerTest::Test),
-    NL_TEST_DEF("Timer::ExtendTimerTo",            ExtendTimerToTest),
-    NL_TEST_DEF("Timer::TestIsTimerActive",        IsTimerActiveTest),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-static int TestSetup(void * aContext);
-static int TestTeardown(void * aContext);
-
-// clang-format off
-static nlTestSuite kTheSuite =
-{
-    "chip-system-timer",
-    &sTests[0],
-    TestSetup,
-    TestTeardown
-};
-// clang-format on
 
 static LayerImpl sLayer;
 
@@ -767,8 +727,7 @@ static int TestSetup(void * aContext)
 
     sLayer.Init();
 
-    lContext.mLayer     = &sLayer;
-    lContext.mTestSuite = &kTheSuite;
+    lContext.mLayer = &sLayer;
 
     return (SUCCESS);
 }
@@ -792,9 +751,5 @@ static int TestTeardown(void * aContext)
     return (SUCCESS);
 }
 
-int TestSystemTimer()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&kTheSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestSystemTimer)
+} // namespace System
+} // namespace chip

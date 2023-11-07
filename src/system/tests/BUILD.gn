@@ -43,7 +43,14 @@ chip_test_suite("tests") {
     test_sources += [ "TestTLVPacketBufferBackingStore.cpp" ]
   }
 
-  cflags = [ "-Wconversion" ]
+  cflags = [
+    "-Wconversion",
+
+    # TODO: Fix compilation warnings and remove this
+    "-Wno-error=undef",
+    "-Wno-error=sign-compare",
+    "-Wno-error=cast-qual",
+  ]
 
   public_deps = [
     "${chip_root}/src/inet",
