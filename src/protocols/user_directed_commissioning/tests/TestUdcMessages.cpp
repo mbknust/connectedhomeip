@@ -1,6 +1,6 @@
 #include <protocols/user_directed_commissioning/UserDirectedCommissioning.h>
 
-#include <nlunit-test.h>
+#include <gtest/gtest.h>
 
 #include <lib/core/CHIPSafeCasts.h>
 #include <lib/dnssd/TxtFields.h>
@@ -9,7 +9,7 @@
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <transport/TransportMgr.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/UDP.h>
@@ -53,20 +53,27 @@ public:
 
 using DeviceTransportMgr = TransportMgr<Transport::UDP>;
 
-void TestUDCServerClients(nlTestSuite * inSuite, void * inContext)
+class TestUdcMessages : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { VerifyOrDie(chip::Platform::MemoryInit() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
+TEST_F(TestUdcMessages, TestUDCServerClients)
 {
     UserDirectedCommissioningServer udcServer;
     const char * instanceName1 = "servertest1";
 
     // test setting UDC Clients
-    NL_TEST_ASSERT(inSuite, nullptr == udcServer.GetUDCClients().FindUDCClientState(instanceName1));
+    EXPECT_TRUE(nullptr == udcServer.GetUDCClients().FindUDCClientState(instanceName1));
     udcServer.SetUDCClientProcessingState((char *) instanceName1, UDCClientProcessingState::kUserDeclined);
     UDCClientState * state = udcServer.GetUDCClients().FindUDCClientState(instanceName1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
 }
 
-void TestUDCServerUserConfirmationProvider(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestUdcMessages, TestUDCServerUserConfirmationProvider)
 {
     UserDirectedCommissioningServer udcServer;
     TestCallback testCallback;
@@ -100,13 +107,13 @@ void TestUDCServerUserConfirmationProvider(nlTestSuite * inSuite, void * inConte
     udcServer.OnCommissionableNodeFound(nodeData2);
     udcServer.OnCommissionableNodeFound(nodeData1);
     state = udcServer.GetUDCClients().FindUDCClientState(instanceName1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
     // test other fields on UDCClientState
-    NL_TEST_ASSERT(inSuite, 0 == strcmp(state->GetInstanceName(), instanceName1));
+    EXPECT_TRUE(0 == strcmp(state->GetInstanceName(), instanceName1));
     // check that instance2 was found
     state = udcServer.GetUDCClients().FindUDCClientState(instanceName2);
-    NL_TEST_ASSERT(inSuite, nullptr == state);
+    EXPECT_TRUE(nullptr == state);
 
     // test current state check
     udcServer.SetUDCClientProcessingState((char *) instanceName1, UDCClientProcessingState::kUserDeclined);
@@ -114,28 +121,28 @@ void TestUDCServerUserConfirmationProvider(nlTestSuite * inSuite, void * inConte
     udcServer.OnCommissionableNodeFound(nodeData2);
     udcServer.OnCommissionableNodeFound(nodeData1);
     state = udcServer.GetUDCClients().FindUDCClientState(instanceName1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(UDCClientProcessingState::kUserDeclined == state->GetUDCClientProcessingState());
     state = udcServer.GetUDCClients().FindUDCClientState(instanceName2);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, UDCClientProcessingState::kPromptingUser == state->GetUDCClientProcessingState());
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(UDCClientProcessingState::kPromptingUser == state->GetUDCClientProcessingState());
     // test other fields on UDCClientState
-    NL_TEST_ASSERT(inSuite, 0 == strcmp(state->GetInstanceName(), instanceName2));
-    NL_TEST_ASSERT(inSuite, 0 == strcmp(state->GetDeviceName(), deviceName2));
-    NL_TEST_ASSERT(inSuite, state->GetLongDiscriminator() == disc2);
+    EXPECT_TRUE(0 == strcmp(state->GetInstanceName(), instanceName2));
+    EXPECT_TRUE(0 == strcmp(state->GetDeviceName(), deviceName2));
+    EXPECT_TRUE(state->GetLongDiscriminator() == disc2);
 
     // test non-empty UserConfirmationProvider
     udcServer.SetUserConfirmationProvider(&testCallback);
     udcServer.SetUDCClientProcessingState((char *) instanceName1, UDCClientProcessingState::kUserDeclined);
     udcServer.SetUDCClientProcessingState((char *) instanceName2, UDCClientProcessingState::kDiscoveringNode);
     udcServer.OnCommissionableNodeFound(nodeData1);
-    NL_TEST_ASSERT(inSuite, !testCallback.mOnUserDirectedCommissioningRequestCalled);
+    EXPECT_TRUE(!testCallback.mOnUserDirectedCommissioningRequestCalled);
     udcServer.OnCommissionableNodeFound(nodeData2);
-    NL_TEST_ASSERT(inSuite, testCallback.mOnUserDirectedCommissioningRequestCalled);
-    NL_TEST_ASSERT(inSuite, 0 == strcmp(testCallback.mState.GetInstanceName(), instanceName2));
+    EXPECT_TRUE(testCallback.mOnUserDirectedCommissioningRequestCalled);
+    EXPECT_TRUE(0 == strcmp(testCallback.mState.GetInstanceName(), instanceName2));
 }
 
-void TestUDCServerInstanceNameResolver(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestUdcMessages, TestUDCServerInstanceNameResolver)
 {
     UserDirectedCommissioningServer udcServer;
     UserDirectedCommissioningClient udcClient;
@@ -167,11 +174,11 @@ void TestUDCServerInstanceNameResolver(nlTestSuite * inSuite, void * inContext)
 
     // check if the state is set for the instance name sent
     state = udcServer.GetUDCClients().FindUDCClientState(nameBuffer);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, UDCClientProcessingState::kDiscoveringNode == state->GetUDCClientProcessingState());
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(UDCClientProcessingState::kDiscoveringNode == state->GetUDCClientProcessingState());
 
     // check if a callback happened
-    NL_TEST_ASSERT(inSuite, testCallback.mFindCommissionableNodeCalled);
+    EXPECT_TRUE(testCallback.mFindCommissionableNodeCalled);
 
     // reset callback tracker so we can confirm that when the
     // same instance name is received, there is no callback
@@ -186,7 +193,7 @@ void TestUDCServerInstanceNameResolver(nlTestSuite * inSuite, void * inContext)
     mUdcTransportMgr->HandleMessageReceived(peerAddress, std::move(payloadBuf));
 
     // verify it was not called
-    NL_TEST_ASSERT(inSuite, !testCallback.mFindCommissionableNodeCalled);
+    EXPECT_TRUE(!testCallback.mFindCommissionableNodeCalled);
 
     // next, reset the cache state and confirm the callback
     udcServer.ResetUDCClientProcessingStates();
@@ -200,10 +207,10 @@ void TestUDCServerInstanceNameResolver(nlTestSuite * inSuite, void * inContext)
     mUdcTransportMgr->HandleMessageReceived(peerAddress, std::move(payloadBuf));
 
     // verify it was called
-    NL_TEST_ASSERT(inSuite, testCallback.mFindCommissionableNodeCalled);
+    EXPECT_TRUE(testCallback.mFindCommissionableNodeCalled);
 }
 
-void TestUserDirectedCommissioningClientMessage(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestUdcMessages, TestUserDirectedCommissioningClientMessage)
 {
     char nameBuffer[Dnssd::Commission::kInstanceNameMaxLength + 1] = "Chris";
     System::PacketBufferHandle payloadBuf = MessagePacketBuffer::NewWithData(nameBuffer, strlen(nameBuffer));
@@ -215,15 +222,15 @@ void TestUserDirectedCommissioningClientMessage(nlTestSuite * inSuite, void * in
     // check the packet header fields
     PacketHeader packetHeader;
     packetHeader.DecodeAndConsume(payloadBuf);
-    NL_TEST_ASSERT(inSuite, !packetHeader.IsEncrypted());
+    EXPECT_TRUE(!packetHeader.IsEncrypted());
 
     // check the payload header fields
     PayloadHeader payloadHeader;
     payloadHeader.DecodeAndConsume(payloadBuf);
-    NL_TEST_ASSERT(inSuite, payloadHeader.GetMessageType() == to_underlying(MsgType::IdentificationDeclaration));
-    NL_TEST_ASSERT(inSuite, payloadHeader.GetProtocolID() == Protocols::UserDirectedCommissioning::Id);
-    NL_TEST_ASSERT(inSuite, !payloadHeader.NeedsAck());
-    NL_TEST_ASSERT(inSuite, payloadHeader.IsInitiator());
+    EXPECT_TRUE(payloadHeader.GetMessageType() == to_underlying(MsgType::IdentificationDeclaration));
+    EXPECT_TRUE(payloadHeader.GetProtocolID() == Protocols::UserDirectedCommissioning::Id);
+    EXPECT_TRUE(!payloadHeader.NeedsAck());
+    EXPECT_TRUE(payloadHeader.IsInitiator());
 
     // check the payload
     char instanceName[Dnssd::Commission::kInstanceNameMaxLength + 1];
@@ -231,13 +238,13 @@ void TestUserDirectedCommissioningClientMessage(nlTestSuite * inSuite, void * in
     payloadBuf->Read(Uint8::from_char(instanceName), instanceNameLength);
     instanceName[instanceNameLength] = '\0';
     ChipLogProgress(Inet, "UDC instance=%s", instanceName);
-    NL_TEST_ASSERT(inSuite, strcmp(instanceName, nameBuffer) == 0);
+    EXPECT_TRUE(strcmp(instanceName, nameBuffer) == 0);
 
     // verify no errors
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 }
 
-void TestUDCClients(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestUdcMessages, TestUDCClients)
 {
     UDCClients<3> mUdcClients;
     const char * instanceName1 = "test1";
@@ -247,39 +254,39 @@ void TestUDCClients(nlTestSuite * inSuite, void * inContext)
 
     // test base case
     UDCClientState * state = mUdcClients.FindUDCClientState(instanceName1);
-    NL_TEST_ASSERT(inSuite, state == nullptr);
+    EXPECT_TRUE(state == nullptr);
 
     // test max size
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName1, &state));
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName2, &state));
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName3, &state));
-    NL_TEST_ASSERT(inSuite, CHIP_ERROR_NO_MEMORY == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName1, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName2, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName3, &state));
+    EXPECT_TRUE(CHIP_ERROR_NO_MEMORY == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
 
     // test reset
     mUdcClients.ResetUDCClientStates();
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
 
     // test find
-    NL_TEST_ASSERT(inSuite, nullptr == mUdcClients.FindUDCClientState(instanceName1));
-    NL_TEST_ASSERT(inSuite, nullptr == mUdcClients.FindUDCClientState(instanceName2));
-    NL_TEST_ASSERT(inSuite, nullptr == mUdcClients.FindUDCClientState(instanceName3));
+    EXPECT_TRUE(nullptr == mUdcClients.FindUDCClientState(instanceName1));
+    EXPECT_TRUE(nullptr == mUdcClients.FindUDCClientState(instanceName2));
+    EXPECT_TRUE(nullptr == mUdcClients.FindUDCClientState(instanceName3));
     state = mUdcClients.FindUDCClientState(instanceName4);
-    NL_TEST_ASSERT(inSuite, nullptr != state);
+    EXPECT_TRUE(nullptr != state);
 
     // test expiry
     state->Reset();
-    NL_TEST_ASSERT(inSuite, nullptr == mUdcClients.FindUDCClientState(instanceName4));
+    EXPECT_TRUE(nullptr == mUdcClients.FindUDCClientState(instanceName4));
 
     // test re-activation
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName4, &state));
     System::Clock::Timestamp expirationTime = state->GetExpirationTime();
     state->SetExpirationTime(expirationTime - System::Clock::Milliseconds64(1));
-    NL_TEST_ASSERT(inSuite, (expirationTime - System::Clock::Milliseconds64(1)) == state->GetExpirationTime());
+    EXPECT_TRUE((expirationTime - System::Clock::Milliseconds64(1)) == state->GetExpirationTime());
     mUdcClients.MarkUDCClientActive(state);
-    NL_TEST_ASSERT(inSuite, (expirationTime - System::Clock::Milliseconds64(1)) < state->GetExpirationTime());
+    EXPECT_TRUE((expirationTime - System::Clock::Milliseconds64(1)) < state->GetExpirationTime());
 }
 
-void TestUDCClientState(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestUdcMessages, TestUDCClientState)
 {
     UDCClients<3> mUdcClients;
     const char * instanceName1 = "test1";
@@ -310,113 +317,51 @@ void TestUDCClientState(nlTestSuite * inSuite, void * inContext)
     rotatingIdLongLen      = Encoding::HexToBytes(reinterpret_cast<const char *>(value.data()), value.size(), rotatingIdLong,
                                              chip::Dnssd::kMaxRotatingIdLen * 2);
 
-    NL_TEST_ASSERT(inSuite, rotatingIdLongLen > chip::Dnssd::kMaxRotatingIdLen);
+    EXPECT_TRUE(rotatingIdLongLen > chip::Dnssd::kMaxRotatingIdLen);
 
     // test base case
     UDCClientState * state = mUdcClients.FindUDCClientState(instanceName1);
-    NL_TEST_ASSERT(inSuite, state == nullptr);
+    EXPECT_TRUE(state == nullptr);
 
     // add a default state
-    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName1, &state));
+    EXPECT_TRUE(CHIP_NO_ERROR == mUdcClients.CreateNewUDCClientState(instanceName1, &state));
 
     // get the state
     state = mUdcClients.FindUDCClientState(instanceName1);
-    NL_TEST_EXIT_ON_FAILED_ASSERT(inSuite, nullptr != state);
-    NL_TEST_ASSERT(inSuite, strcmp(state->GetInstanceName(), instanceName1) == 0);
+    ASSERT_TRUE(nullptr != state);
+    EXPECT_TRUE(strcmp(state->GetInstanceName(), instanceName1) == 0);
 
     state->SetPeerAddress(chip::Transport::PeerAddress::UDP(address, port));
-    NL_TEST_ASSERT(inSuite, port == state->GetPeerAddress().GetPort());
+    EXPECT_TRUE(port == state->GetPeerAddress().GetPort());
 
     state->SetDeviceName(deviceName);
-    NL_TEST_ASSERT(inSuite, strcmp(state->GetDeviceName(), deviceName) == 0);
+    EXPECT_TRUE(strcmp(state->GetDeviceName(), deviceName) == 0);
 
     state->SetLongDiscriminator(longDiscriminator);
-    NL_TEST_ASSERT(inSuite, longDiscriminator == state->GetLongDiscriminator());
+    EXPECT_TRUE(longDiscriminator == state->GetLongDiscriminator());
 
     state->SetVendorId(vendorId);
-    NL_TEST_ASSERT(inSuite, vendorId == state->GetVendorId());
+    EXPECT_TRUE(vendorId == state->GetVendorId());
 
     state->SetProductId(productId);
-    NL_TEST_ASSERT(inSuite, productId == state->GetProductId());
+    EXPECT_TRUE(productId == state->GetProductId());
 
     state->SetRotatingId(rotatingId, rotatingIdLen);
-    NL_TEST_ASSERT(inSuite, rotatingIdLen == state->GetRotatingIdLength());
+    EXPECT_TRUE(rotatingIdLen == state->GetRotatingIdLength());
 
     const uint8_t * testRotatingId = state->GetRotatingId();
     for (size_t i = 0; i < rotatingIdLen; i++)
     {
-        NL_TEST_ASSERT(inSuite, testRotatingId[i] == rotatingId[i]);
+        EXPECT_TRUE(testRotatingId[i] == rotatingId[i]);
     }
 
     state->SetRotatingId(rotatingIdLong, rotatingIdLongLen);
 
-    NL_TEST_ASSERT(inSuite, chip::Dnssd::kMaxRotatingIdLen == state->GetRotatingIdLength());
+    EXPECT_TRUE(chip::Dnssd::kMaxRotatingIdLen == state->GetRotatingIdLength());
 
     const uint8_t * testRotatingIdLong = state->GetRotatingId();
     for (size_t i = 0; i < chip::Dnssd::kMaxRotatingIdLen; i++)
     {
-        NL_TEST_ASSERT(inSuite, testRotatingIdLong[i] == rotatingIdLong[i]);
+        EXPECT_TRUE(testRotatingIdLong[i] == rotatingIdLong[i]);
     }
 }
-
-// Test Suite
-
-/**
- *  Test Suite that lists all the test functions.
- */
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("TestUDCServerClients", TestUDCServerClients),
-    NL_TEST_DEF("TestUDCServerUserConfirmationProvider", TestUDCServerUserConfirmationProvider),
-    NL_TEST_DEF("TestUDCServerInstanceNameResolver", TestUDCServerInstanceNameResolver),
-    NL_TEST_DEF("TestUserDirectedCommissioningClientMessage", TestUserDirectedCommissioningClientMessage),
-    NL_TEST_DEF("TestUDCClients", TestUDCClients),
-    NL_TEST_DEF("TestUDCClientState", TestUDCClientState),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-/**
- *  Set up the test suite.
- */
-static int TestSetup(void * inContext)
-{
-    CHIP_ERROR error = chip::Platform::MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return FAILURE;
-    return SUCCESS;
-}
-
-/**
- *  Tear down the test suite.
- */
-static int TestTeardown(void * inContext)
-{
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
-}
-
-// clang-format off
-static nlTestSuite sSuite =
-{
-    "Test-CHIP-UdcMessages",
-    &sTests[0],
-    TestSetup,
-    TestTeardown,
-};
-// clang-format on
-
-/**
- *  Main
- */
-int TestUdcMessages()
-{
-    // Run test suit against one context
-    nlTestRunner(&sSuite, nullptr);
-
-    return (nlTestRunnerStats(&sSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestUdcMessages)

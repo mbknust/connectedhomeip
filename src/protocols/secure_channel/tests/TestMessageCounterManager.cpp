@@ -24,7 +24,7 @@
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/UnitTestContext.h>
-#include <lib/support/UnitTestRegistration.h>
+
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
@@ -35,8 +35,8 @@
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 
+#include <gtest/gtest.h>
 #include <nlbyteorder.h>
-#include <nlunit-test.h>
 
 #include <errno.h>
 
@@ -67,10 +67,18 @@ public:
     int ReceiveHandlerCallCount = 0;
 };
 
-void MessageCounterSyncProcess(nlTestSuite * inSuite, void * inContext)
+class TestMessageCounterManager : public ::testing::Test
 {
-    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
+public:
+    static void SetUpTestSuite() { VerifyOrDie(ctx.Init() == CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { ctx.Shutdown(); }
+    static TestContext ctx;
+};
 
+TestContext TestMessageCounterManager::ctx;
+
+TEST_F(TestMessageCounterManager, MessageCounterSyncProcess)
+{
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     SessionHandle localSession = ctx.GetSessionBobToAlice();
@@ -81,18 +89,17 @@ void MessageCounterSyncProcess(nlTestSuite * inSuite, void * inContext)
 
     localState->GetSessionMessageCounter().GetPeerMessageCounter().Reset();
     err = ctx.GetMessageCounterManager().SendMsgCounterSyncReq(localSession, localState);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
 
     MessageCounter & peerCounter      = peerState->GetSessionMessageCounter().GetLocalMessageCounter();
     PeerMessageCounter & localCounter = localState->GetSessionMessageCounter().GetPeerMessageCounter();
-    NL_TEST_ASSERT(inSuite, localCounter.IsSynchronized());
-    NL_TEST_ASSERT(inSuite, localCounter.GetCounter() == peerCounter.Value());
+    EXPECT_TRUE(localCounter.IsSynchronized());
+    EXPECT_TRUE(localCounter.GetCounter() == peerCounter.Value());
 }
 
-void CheckReceiveMessage(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestMessageCounterManager, CheckReceiveMessage)
 {
-    TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
-    CHIP_ERROR err    = CHIP_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     SessionHandle peerSession            = ctx.GetSessionAliceToBob();
     Transport::SecureSession * peerState = ctx.GetSecureSessionManager().GetSecureSession(peerSession);
@@ -103,73 +110,16 @@ void CheckReceiveMessage(nlTestSuite * inSuite, void * inContext)
 
     uint16_t payload_len              = sizeof(PAYLOAD);
     System::PacketBufferHandle msgBuf = MessagePacketBuffer::NewWithData(PAYLOAD, payload_len);
-    NL_TEST_ASSERT(inSuite, !msgBuf.IsNull());
+    EXPECT_TRUE(!msgBuf.IsNull());
 
     Messaging::ExchangeContext * ec = ctx.NewExchangeToAlice(nullptr);
-    NL_TEST_ASSERT(inSuite, ec != nullptr);
+    EXPECT_TRUE(ec != nullptr);
 
     err = ec->SendMessage(chip::Protocols::Echo::MsgType::EchoRequest, std::move(msgBuf),
                           Messaging::SendFlags{ Messaging::SendMessageFlags::kNoAutoRequestAck });
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, peerState->GetSessionMessageCounter().GetPeerMessageCounter().IsSynchronized());
-    NL_TEST_ASSERT(inSuite, callback.ReceiveHandlerCallCount == 1);
-}
-
-// Test Suite
-
-/**
- *  Test Suite that lists all the test functions.
- */
-// clang-format off
-const nlTest sTests[] =
-{
-    NL_TEST_DEF("Test MessageCounterManager::MessageCounterSyncProcess", MessageCounterSyncProcess),
-    NL_TEST_DEF("Test MessageCounterManager::ReceiveMessage", CheckReceiveMessage),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int Initialize(void * aContext);
-int Finalize(void * aContext);
-
-// clang-format off
-nlTestSuite sSuite =
-{
-    "Test-MessageCounterManager",
-    &sTests[0],
-    Initialize,
-    Finalize
-};
-// clang-format on
-
-/**
- *  Initialize the test suite.
- */
-int Initialize(void * aContext)
-{
-    auto * ctx = static_cast<TestContext *>(aContext);
-    VerifyOrReturnError(ctx->Init(&sSuite) == CHIP_NO_ERROR, FAILURE);
-
-    return SUCCESS;
-}
-
-/**
- *  Finalize the test suite.
- */
-int Finalize(void * aContext)
-{
-    reinterpret_cast<TestContext *>(aContext)->Shutdown();
-    return SUCCESS;
+    EXPECT_TRUE(err == CHIP_NO_ERROR);
+    EXPECT_TRUE(peerState->GetSessionMessageCounter().GetPeerMessageCounter().IsSynchronized());
+    EXPECT_TRUE(callback.ReceiveHandlerCallCount == 1);
 }
 
 } // namespace
-
-/**
- *  Main
- */
-int TestMessageCounterManager()
-{
-    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestMessageCounterManager);
