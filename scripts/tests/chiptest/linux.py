@@ -18,6 +18,7 @@
 Handles linux-specific functionality for running test cases
 """
 
+from time import sleep
 import logging
 import os
 import subprocess
@@ -25,6 +26,7 @@ import sys
 import time
 
 from .test_definition import ApplicationPaths
+import psutil
 
 test_environ = os.environ.copy()
 
@@ -157,6 +159,7 @@ def RemoveNamespaceForAppTest():
 
 
 def PrepareNamespacesForTestExecution(in_unshare: bool):
+
     if not in_unshare:
         EnsureNetworkNamespaceAvailability()
     elif in_unshare:
@@ -167,6 +170,93 @@ def PrepareNamespacesForTestExecution(in_unshare: bool):
 
 def ShutdownNamespaceForTestExecution():
     RemoveNamespaceForAppTest()
+
+class VirtualWifi:
+    def __init__(self, hostapd_path: str, dnsmasq_path: str, wpa_supplicant_path: str, wlan_app: str, wlan_tool: str):
+        self._hostapd_path = hostapd_path
+        self._dnsmasq_path = dnsmasq_path
+        self._wpa_supplicant_path = wpa_supplicant_path
+        self._hostapd_conf = "/etc/hostapd/hostapd.conf"
+        self._dnsmasq_conf = "/etc/dnsmasq.conf"
+        self._wpa_supplicant_conf = "/etc/wpa_supplicant/wpa_supplicant.conf"
+        self._wlan_app = wlan_app
+        self._wlan_tool = wlan_tool
+        self._hostapd = None
+        self._dnsmasq = None
+        self._wpa_supplicant = None
+
+    @staticmethod
+    def _get_phy(dev: str) -> str:
+        output = subprocess.check_output(['iw', 'dev', dev, 'info'])
+        for line in output.split(b'\n'):
+            if b'wiphy' in line:
+                wiphy = int(line.split(b' ')[1])
+                return f"phy{wiphy}"
+        raise ValueError(f'No wiphy found for {dev}')
+
+    @staticmethod
+    def _move_phy_to_netns(phy: str, netns: str):
+        subprocess.check_call(["iw", "phy", phy, "set", "netns", "name", netns])
+
+    @staticmethod
+    def _set_interface_ip_in_netns(netns: str, dev: str, ip: str):
+        subprocess.check_call(["ip", "netns", "exec", netns, "ip", "link", "set", "dev", dev, "up"])
+        subprocess.check_call(["ip", "netns", "exec", netns, "ip", "addr", "add", ip, "dev", dev])
+
+    def start(self):
+        self._move_phy_to_netns(self._get_phy(self._wlan_app), 'app')
+        self._move_phy_to_netns(self._get_phy(self._wlan_tool), 'tool')
+        self._set_interface_ip_in_netns('tool', self._wlan_tool, '192.168.200.1/24')
+
+        self._hostapd = subprocess.Popen(["ip", "netns", "exec", "tool", self._hostapd_path,
+                                          self._hostapd_conf], stdout=subprocess.DEVNULL)
+        self._dnsmasq = subprocess.Popen(["ip", "netns", "exec", "tool", self._dnsmasq_path,
+                                          '-d', '-C', self._dnsmasq_conf], stdout=subprocess.DEVNULL)
+        self._wpa_supplicant = subprocess.Popen(
+            ["ip", "netns", "exec", "app", self._wpa_supplicant_path, "-u", '-s', '-c', self._wpa_supplicant_conf], stdout=subprocess.DEVNULL)
+
+    def stop(self):
+        if self._hostapd:
+            self._hostapd.terminate()
+            self._hostapd.wait()
+        if self._dnsmasq:
+            self._dnsmasq.terminate()
+            self._dnsmasq.wait()
+        if self._wpa_supplicant:
+            self._wpa_supplicant.terminate()
+            self._wpa_supplicant.wait()
+
+
+class VirtualBle:
+    def __init__(self, btvirt_path: str, bluetoothctl_path: str):
+        self._btvirt_path = btvirt_path
+        self._bluetoothctl_path = bluetoothctl_path
+        self._btvirt = None
+        self._bluetoothctl = None
+
+    def bletoothctl_cmd(self, cmd):
+        self._bluetoothctl.stdin.write(cmd)
+        self._bluetoothctl.stdin.flush()
+
+    def _run_bluetoothctl(self):
+        self._bluetoothctl = subprocess.Popen([self._bluetoothctl_path], text=True,
+                                              stdin=subprocess.PIPE, stdout=subprocess.DEVNULL)
+        self.bletoothctl_cmd("select 00:AA:01:00:00:00\n")
+        self.bletoothctl_cmd("power on\n")
+        self.bletoothctl_cmd("select 00:AA:01:01:00:01\n")
+        self.bletoothctl_cmd("power on\n")
+        self.bletoothctl_cmd("quit\n")
+        self._bluetoothctl.wait()
+
+    def start(self):
+        self._btvirt = subprocess.Popen([self._btvirt_path, '-l2'])
+        sleep(1)
+        self._run_bluetoothctl()
+
+    def stop(self):
+        if self._btvirt:
+            self._btvirt.terminate()
+            self._btvirt.wait()
 
 
 def PathsWithNetworkNamespaces(paths: ApplicationPaths) -> ApplicationPaths:

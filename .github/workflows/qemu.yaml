@@ -97,3 +97,58 @@ jobs:
                         --target tizen-arm-tests-no-ble-no-thread \
                         build
                     "
+
+    qemu-linux:
+        name: ubuntu
+
+        runs-on: ubuntu-latest
+        if: github.actor != 'restyled-io[bot]'
+
+        container:
+            image: ghcr.io/project-chip/chip-build-linux-qemu:32
+            volumes:
+                - "/tmp/log_output:/tmp/test_logs"
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Checkout submodules & Bootstrap
+              uses: ./.github/actions/checkout-submodules-and-bootstrap
+              with:
+                platform: linux
+
+            - name: Build Apps
+              run: |
+                  scripts/run_in_build_env.sh './scripts/build_python.sh --install_virtual_env out/venv'
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-chip-tool${CHIP_TOOL_VARIANT}-${BUILD_VARIANT} \
+                        --target linux-x64-all-clusters-${BUILD_VARIANT} \
+                        --target linux-x64-lock-${BUILD_VARIANT} \
+                        --target linux-x64-ota-provider-${BUILD_VARIANT} \
+                        --target linux-x64-ota-requestor-${BUILD_VARIANT} \
+                        --target linux-x64-tv-app-${BUILD_VARIANT} \
+                        --target linux-x64-bridge-${BUILD_VARIANT} \
+                        --target linux-x64-lit-icd-${BUILD_VARIANT} \
+                        build \
+                        --copy-artifacts-to objdir-clone \
+                     "
+            - name: Run ble commission test using the python parser sending commands to chip-tool
+              run: |
+                ./scripts/run_in_build_env.sh \
+                "./scripts/tests/run_test_suite.py \
+                  --runner chip_tool_python \
+                  --target TestCommissionerNodeId \
+                  --chip-tool ./out/linux-x64-chip-tool/chip-tool \
+                  run \
+                    --iterations 1 \
+                    --test-timeout-seconds 120 \
+                    --all-clusters-app ./out/linux-x64-all-clusters/chip-all-clusters-app \
+                    --lock-app ./out/linux-x64-lock/chip-lock-app \
+                    --ota-provider-app ./out/linux-x64-ota-provider/chip-ota-provider-app \
+                    --ota-requestor-app ./out/linux-x64-ota-requestor/chip-ota-requestor-app \
+                    --tv-app ./out/linux-x64-tv-app/chip-tv-app \
+                    --bridge-app ./out/linux-x64-bridge/chip-bridge-app \
+                    --lit-icd-app ./out/linux-x64-lit-icd/lit-icd-app \
+                    --ble-wifi \
+                "
