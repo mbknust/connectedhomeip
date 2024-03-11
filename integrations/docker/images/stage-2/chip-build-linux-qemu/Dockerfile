@@ -127,8 +127,8 @@ RUN mkdir -p /tmp/workdir/linux \
 	# RUN truncate -s 5G /opt/ubuntu-qemu/ubuntu-20.04.img
 	&& qemu-img create -f qcow2 -o preallocation=off $UBUNTU_QEMU_IMG 10G \
 	&& virt-resize --expand /dev/sda1 /opt/ubuntu-qemu/ubuntu-20.04-minimal-cloudimg-amd64.img $UBUNTU_QEMU_IMG \
-	&& rm -rf /tmp/workdir \
-	&& guestfish -a $UBUNTU_QEMU_IMG \
+	&& rm -rf /tmp/workdir
+RUN guestfish -a $UBUNTU_QEMU_IMG \
 	--mount /dev/sda3:/ \
 	--network \
 	copy-in /opt/ubuntu-qemu/rootfs/lib /usr : \
@@ -171,14 +171,29 @@ RUN mkdir -p /tmp/workdir/linux \
 	sh 'rm -f /etc/resolv.conf && /bin/echo -e "nameserver 8.8.8.8" > /etc/resolv.conf' : \
 	sh '/bin/echo -e "interface=wlan1\ndriver=nl80211\ncountry_code=DE\nssid=Virtual_Wifi\nchannel=1\nhw_mode=g\nwpa=3\nwpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP CCMP\nwpa_passphrase=ExamplePassword\nauth_algs=3\nbeacon_int=100\n" > /etc/hostapd/hostapd.conf' :\
 	sh '/bin/echo -e "host0 /chip 9p trans=virtio,version=9p2000.L 0 0" >> /etc/fstab' : \
-	sh '/bin/echo -e "export PW_ENVIRONMENT_ROOT=/root/pw_root" >> /root/.profile' : \
+	sh '/bin/echo -e "export PW_ENVIRONMENT_ROOT=/root/pw_root\n[ -x /launcher.sh ] && /launcher.sh\n" >> /root/.profile' : \
 	sh 'DEBIAN_FRONTEND=noninteractive apt-get -y install git gcc g++ pkg-config libssl-dev libdbus-1-dev libglib2.0-dev libavahi-client-dev ninja-build python3 python3-venv python3-dev python3-pip unzip libgirepository1.0-dev libcairo2-dev libreadline-dev' : \
 	sh 'git config --file /root/.gitconfig  --add safe.directory "*"' : \
 	sh 'apt-get clean' : \
 	sh 'rm -rf /var/lib/apt/lists' \
 	&& mkdir -p /chip \
-	&& rm -rf /opt/ubuntu-qemu/rootfs
-
+	&& rm -rf /opt/ubuntu-qemu/rootfs 
+RUN echo -n \
+	"#!/bin/bash\n" \
+	"grep -q 'rootshell' /proc/cmdline && exit\n" \
+	"if [[ -x /chip/runner.sh ]]; then\n" \
+	"  echo '### RUNNER START ###'\n" \
+	"  cd /chip\n" \
+	"  /chip/runner.sh\n" \
+	"  status=\$?\n" \
+	"  echo \"### RUNNER STOP, RETURN: \$status\"\n" \
+	"  echo \$status > /chip/runner_status\n" \
+	"else\n" \
+	"  read -r -t 5 -p 'Press ENTER to access root shell...' && exit || echo ' timeout.'\n" \
+	"fi\n" \
+	"echo 'Shutting down emulated system...'\n" \
+	"echo o > /proc/sysrq-trigger\n" \
+	| guestfish --rw -a $UBUNTU_QEMU_IMG -m /dev/sda3:/ upload - /launcher.sh : chmod 0755 /launcher.sh
 ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
 COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
 RUN chmod +x /opt/ubuntu-qemu/run-img.sh
