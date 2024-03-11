@@ -105,7 +105,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: ghcr.io/project-chip/chip-build-linux-qemu:32
+            image: ghcr.io/jlatusek/chip-build-linux-qemu:latest
             volumes:
                 - "/tmp/log_output:/tmp/test_logs"
 
