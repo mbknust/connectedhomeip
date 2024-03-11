@@ -7,36 +7,49 @@ ARG BLUEZ_VERSION=5.72
 ARG ELL_VERSION=0.62
 
 ENV UBUNTU_QEMU_IMG="/opt/ubuntu-qemu/ubuntu-20.04.img"
+ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
 
 RUN mkdir -p /tmp/workdir/linux /opt/ubuntu-qemu/virt
 COPY files/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch /tmp/workdir/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch
+COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
 
 RUN set -x \
+	&& chmod +x /opt/ubuntu-qemu/run-img.sh \
 	&& apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -fy apt-utils \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -fy \
-	qemu \
-	git \
-	fakeroot \
-	build-essential \
-	ncurses-dev \
-	xz-utils \
-	libssl-dev \
-	bc flex \
-	libelf-dev \
+	autoconf \
+	bc \
 	bison \
-	make \
+	build-essential \
 	cpio dwarves zstd \
 	curl \
-	python3 \
-	libguestfs-tools linux-image-generic \
-	git bc libusb-dev libdbus-1-dev libglib2.0-dev unzip \
+	elfutils \
+	fakeroot \
+	flex \
 	git \
-	bc \
+	libdbus-1-dev \
+	libdw-dev \
+	libelf-dev \
+	libell-dev \
+	libell0 \
+	libglib2.0-dev \
+	libguestfs-tools \
+	libical-dev \
+	libreadline-dev \
+	libssl-dev \
+	libtool \
+	libudev-dev \
 	libusb-dev \
-	libdbus-1-dev libglib2.0-dev libudev-dev libical-dev libreadline-dev autoconf elfutils \
-	libelf-dev libdw-dev libell-dev libell0 build-essential libtool python3-docutils \
+	linux-image-generic \
+	make \
+	ncurses-dev \
+	python3 \
+	python3-docutils \
+	qemu \
 	udev \
+	unzip \
+	xz-utils \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/ \
 	&& : # last line
@@ -194,8 +207,5 @@ RUN echo -n \
 	"echo 'Shutting down emulated system...'\n" \
 	"echo o > /proc/sysrq-trigger\n" \
 	| guestfish --rw -a $UBUNTU_QEMU_IMG -m /dev/sda3:/ upload - /launcher.sh : chmod 0755 /launcher.sh
-ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
-COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
-RUN chmod +x /opt/ubuntu-qemu/run-img.sh
 
 WORKDIR /opt/ubuntu-qemu
