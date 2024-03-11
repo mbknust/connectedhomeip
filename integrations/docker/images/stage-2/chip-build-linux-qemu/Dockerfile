@@ -9,7 +9,7 @@ ARG ELL_VERSION=0.62
 ENV UBUNTU_QEMU_IMG="/opt/ubuntu-qemu/ubuntu-20.04.img"
 ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
 
-RUN mkdir -p /tmp/workdir/linux /opt/ubuntu-qemu/virt
+RUN mkdir -p /tmp/workdir/linux
 COPY files/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch /tmp/workdir/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch
 COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
 
@@ -18,38 +18,25 @@ RUN set -x \
 	&& apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -fy apt-utils \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -fy \
-	autoconf \
 	bc \
-	bison \
 	build-essential \
-	cpio dwarves zstd \
-	curl \
+	cpio \
+	dwarves \
 	elfutils \
 	fakeroot \
 	flex \
-	git \
-	libdbus-1-dev \
 	libdw-dev \
 	libelf-dev \
 	libell-dev \
 	libell0 \
-	libglib2.0-dev \
 	libguestfs-tools \
-	libical-dev \
-	libreadline-dev \
-	libssl-dev \
-	libtool \
-	libudev-dev \
-	libusb-dev \
 	linux-image-generic \
-	make \
 	ncurses-dev \
 	python3 \
 	python3-docutils \
 	qemu \
-	udev \
-	unzip \
 	xz-utils \
+	zstd \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/ \
 	&& : # last line
@@ -86,10 +73,7 @@ RUN mkdir -p /tmp/workdir/linux \
 	&& cp /tmp/workdir/linux/arch/x86/boot/bzImage /opt/ubuntu-qemu/bzImage \
 	# Download Ubuntu image for QEMU
 	&& curl https://cloud-images.ubuntu.com/minimal/releases/focal/release/ubuntu-20.04-minimal-cloudimg-amd64.img \
-	-o /opt/ubuntu-qemu/ubuntu-20.04-minimal-cloudimg-amd64.img \
-	&& curl https://cloud-images.ubuntu.com/minimal/releases/focal/release/SHA256SUMS \
-	-o /opt/ubuntu-qemu/SHA256SUMS \
-	# && sha256sum -c SHA256SUMS 2>&1 | grep OK \
+	-o /tmp/workdir/ubuntu-20.04-minimal-cloudimg-amd64.img \
 	# Build bluez
 	&& git clone git://git.kernel.org/pub/scm/libs/ell/ell.git /tmp/workdir/ell --depth 1 --branch ${ELL_VERSION} \
 	&& git clone https://github.com/bluez/bluez.git /tmp/workdir/bluez --depth 1 --branch ${BLUEZ_VERSION} \
@@ -137,16 +121,15 @@ RUN mkdir -p /tmp/workdir/linux \
 	--with-systemduserunitdir=/usr/lib/systemd \
 	&& make \
 	&& make install DESTDIR=/opt/ubuntu-qemu/rootfs && mkdir -p /opt/ubuntu-qemu/rootfs/usr/bin && cp /tmp/workdir/bluez/emulator/btvirt /opt/ubuntu-qemu/rootfs/usr/bin \
-	# RUN truncate -s 5G /opt/ubuntu-qemu/ubuntu-20.04.img
+	# Prepare ubuntu image
 	&& qemu-img create -f qcow2 -o preallocation=off $UBUNTU_QEMU_IMG 10G \
-	&& virt-resize --expand /dev/sda1 /opt/ubuntu-qemu/ubuntu-20.04-minimal-cloudimg-amd64.img $UBUNTU_QEMU_IMG \
-	&& rm -rf /tmp/workdir
-RUN guestfish -a $UBUNTU_QEMU_IMG \
+	&& virt-resize --expand /dev/sda1 /tmp/workdir/ubuntu-20.04-minimal-cloudimg-amd64.img $UBUNTU_QEMU_IMG \
+	&& rm -rf /tmp/workdir \
+	&& guestfish -a $UBUNTU_QEMU_IMG \
 	--mount /dev/sda3:/ \
 	--network \
 	copy-in /opt/ubuntu-qemu/rootfs/lib /usr : \
 	copy-in /opt/ubuntu-qemu/rootfs/usr / : \
-	copy-in /opt/ubuntu-qemu/virt /opt : \
 	sh 'apt-get remove -y snapd' : \
 	sh 'apt-get update' : \
 	sh 'DEBIAN_FRONTEND=noninteractive apt-get install -y dnsmasq hostapd wpasupplicant iw libdw1 rfkill' : \
@@ -190,8 +173,8 @@ RUN guestfish -a $UBUNTU_QEMU_IMG \
 	sh 'apt-get clean' : \
 	sh 'rm -rf /var/lib/apt/lists' \
 	&& mkdir -p /chip \
-	&& rm -rf /opt/ubuntu-qemu/rootfs 
-RUN echo -n \
+	&& rm -rf /opt/ubuntu-qemu/rootfs \
+	&& echo -n \
 	"#!/bin/bash\n" \
 	"grep -q 'rootshell' /proc/cmdline && exit\n" \
 	"if [[ -x /chip/runner.sh ]]; then\n" \
@@ -206,6 +189,7 @@ RUN echo -n \
 	"fi\n" \
 	"echo 'Shutting down emulated system...'\n" \
 	"echo o > /proc/sysrq-trigger\n" \
-	| guestfish --rw -a $UBUNTU_QEMU_IMG -m /dev/sda3:/ upload - /launcher.sh : chmod 0755 /launcher.sh
+	| guestfish --rw -a $UBUNTU_QEMU_IMG -m /dev/sda3:/ upload - /launcher.sh : chmod 0755 /launcher.sh \
+	&& rm -rf /var/tmp/.guestfs-0
 
-WORKDIR /opt/ubuntu-qemu
+WORKDIR /chip
