@@ -23,6 +23,8 @@ for i in $(seq 1 $REPEAT); do
             --tv-app ./out/linux-x64-tv-app/chip-tv-app \
             --bridge-app ./out/linux-x64-bridge/chip-bridge-app \
             --lit-icd-app ./out/linux-x64-lit-icd/lit-icd-app \
+            --microwave-oven-app .out/linux-x64-microwave-oven/chip-microwave-oven-app  \
+            --rvc-app .out/linux-x64-rvc/chip-rvc-app  \
             --ble-wifi \
          "
    RESULT=$?
@@ -34,3 +36,12 @@ for i in $(seq 1 $REPEAT); do
       echo "Test $i failed"
    fi
 done
+
+# --lock-app ./out/linux-x64-lock/chip-lock-app \
+# --ota-provider-app ./out/linux-x64-ota-provider/chip-ota-provider-app \
+# --ota-requestor-app ./out/linux-x64-ota-requestor/chip-ota-requestor-app \
+# --tv-app ./out/linux-x64-tv-app/chip-tv-app \
+# --bridge-app ./out/linux-x64-bridge/chip-bridge-app \
+# --lit-icd-app ./out/linux-x64-lit-icd/lit-icd-app \
+# --microwave-oven-app ./out/linux-x64\
+# --rvc-app ./out/linux-x64\
