@@ -24,6 +24,9 @@ SCRIPT_PATH=$(dirname "$(dirname "$(realpath "$0")")")
 echo "$@" >"$SCRIPT_PATH/runner.sh"
 chmod +x "$SCRIPT_PATH/runner.sh"
 
+echo "CMD TEST"
+cat "$SCRIPT_PATH/runner.sh"
+
 "$SCRIPT_PATH/integrations/docker/images/stage-2/chip-build-linux-qemu/run-img.sh"
 
 if [ -f "$SCRIPT_PATH/runner_status" ]; then
