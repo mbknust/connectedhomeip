@@ -19,18 +19,18 @@
 # activating the given python virtual environment
 set -e
 
-SCRIPT_PATH=$(dirname "$(dirname "$(realpath "$0")")")
+PROJECT_PATH=$(dirname "$(dirname "$(realpath "$0")")")
 
-echo "$@" >"$SCRIPT_PATH/runner.sh"
-chmod +x "$SCRIPT_PATH/runner.sh"
+echo "$@" >"$PROJECT_PATH/runner.sh"
+chmod +x "$PROJECT_PATH/runner.sh"
 
 echo "CMD TEST"
-cat "$SCRIPT_PATH/runner.sh"
+cat "$PROJECT_PATH/runner.sh"
 
-"$SCRIPT_PATH/integrations/docker/images/stage-2/chip-build-linux-qemu/run-img.sh"
+"$PROJECT_PATH/integrations/docker/images/stage-2/chip-build-linux-qemu/run-img.sh"
 
-if [ -f "$SCRIPT_PATH/runner_status" ]; then
-	exit "$(cat $SCRIPT_PATH/runner_status)"
+if [ -f "$PROJECT_PATH/runner_status" ]; then
+	exit "$(cat "$PROJECT_PATH/runner_status")"
 else
 	exit 1
 fi

@@ -3,7 +3,7 @@
 KERNEL="/opt/ubuntu-qemu/bzImage"
 IMG="/opt/ubuntu-qemu/ubuntu-20.04.img"
 ADDITIONAL_ARGS=""
-PROJECT_PATH="$(realpath "$(dirname "$(realpath "$0")")/../../../../..")"
+PROJECT_PATH="$(realpath "$(dirname "$0")/../../../../..")"
 
 if kvm-ok; then
 	ADDITIONAL_ARGS="-enable-kvm -cpu host"
