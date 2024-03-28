@@ -10,7 +10,7 @@ ENV UBUNTU_QEMU_IMG="/opt/ubuntu-qemu/ubuntu-20.04.img"
 ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
 
 RUN mkdir -p /tmp/workdir/linux
-COPY files/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch /tmp/workdir/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch
+COPY files/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch /tmp/workdir/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch
 COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
 
 RUN set -x \
