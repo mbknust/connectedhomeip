@@ -18,16 +18,16 @@
 Handles linux-specific functionality for running test cases
 """
 
-from time import sleep
+import glob
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
-import shutil
-import glob
-from typing import Optional
 from collections import namedtuple
+from time import sleep
+from typing import Optional
 
 from .test_definition import ApplicationPaths
 
@@ -356,8 +356,6 @@ def PathsWithNetworkNamespaces(paths: ApplicationPaths) -> ApplicationPaths:
         microwave_oven_app='ip netns exec app'.split() + paths.microwave_oven_app,
         rvc_app='ip netns exec app'.split() + paths.rvc_app,
         bridge_app='ip netns exec app'.split() + paths.bridge_app,
-        chip_repl_yaml_tester_cmd='ip netns exec tool'.split() +
-        paths.chip_repl_yaml_tester_cmd,
-        chip_tool_with_python_cmd='ip netns exec tool'.split() +
-        paths.chip_tool_with_python_cmd,
+        chip_repl_yaml_tester_cmd='ip netns exec tool'.split() + paths.chip_repl_yaml_tester_cmd,
+        chip_tool_with_python_cmd='ip netns exec tool'.split() + paths.chip_tool_with_python_cmd,
     )
