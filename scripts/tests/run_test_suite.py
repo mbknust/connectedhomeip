@@ -17,10 +17,10 @@
 import enum
 import logging
 import os
+import subprocess
 import sys
 import time
 import typing
-import subprocess
 from dataclasses import dataclass, field
 
 import chiptest
@@ -124,8 +124,7 @@ class RunContext:
 )
 @click.option(
     '--runner',
-    type=click.Choice(['chip_repl_python', 'chip_tool_python',
-                      'darwin_framework_tool_python'], case_sensitive=False),
+    type=click.Choice(['chip_repl_python', 'chip_tool_python', 'darwin_framework_tool_python'], case_sensitive=False),
     default='chip_tool_python',
     help='Run YAML tests using the specified runner.')
 @click.option(
@@ -163,8 +162,7 @@ def main(context, dry_run, log_level, target, target_glob, target_skip_glob,
     if runtime == TestRunTime.CHIP_REPL_PYTHON:
         all_tests = [test for test in chiptest.AllReplYamlTests()]
     elif runtime == TestRunTime.DARWIN_FRAMEWORK_TOOL_PYTHON:
-        all_tests = [
-            test for test in chiptest.AllDarwinFrameworkToolYamlTests()]
+        all_tests = [test for test in chiptest.AllDarwinFrameworkToolYamlTests()]
     else:
         all_tests = [test for test in chiptest.AllChipToolYamlTests()]
 
@@ -302,8 +300,7 @@ def cmd_list(context):
 def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, ota_requestor_app,
             tv_app, bridge_app, lit_icd_app, microwave_oven_app, rvc_app, chip_repl_yaml_tester, chip_tool_with_python, pics_file, keep_going, test_timeout_seconds, expected_failures, ble_wifi):
     if expected_failures != 0 and not keep_going:
-        logging.exception(
-            f"'--expected-failures {expected_failures}' used without '--keep-going'")
+        logging.exception(f"'--expected-failures {expected_failures}' used without '--keep-going'")
         sys.exit(2)
 
     runner = chiptest.runner.Runner()
@@ -338,8 +335,7 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
         rvc_app = paths_finder.get('chip-rvc-app')
 
     if chip_repl_yaml_tester is None:
-        chip_repl_yaml_tester = paths_finder.get(
-            'yamltest_with_chip_repl_tester.py')
+        chip_repl_yaml_tester = paths_finder.get('yamltest_with_chip_repl_tester.py')
 
     if chip_tool_with_python is None:
         if context.obj.runtime == TestRunTime.DARWIN_FRAMEWORK_TOOL_PYTHON:
@@ -441,8 +437,7 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
                     sys.exit(2)
 
         if observed_failures != expected_failures:
-            logging.exception(
-                f'Iteration {i}: expected failure count {expected_failures}, but got {observed_failures}')
+            logging.exception(f'Iteration {i}: expected failure count {expected_failures}, but got {observed_failures}')
             cleanup()
             sys.exit(2)
 
