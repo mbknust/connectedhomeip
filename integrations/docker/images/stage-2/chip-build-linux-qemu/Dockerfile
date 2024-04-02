@@ -12,7 +12,7 @@ ENV PW_ENVIRONMENT_ROOT="/root/pw_root"
 RUN mkdir -p /tmp/workdir/linux
 COPY files/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch /tmp/workdir/linux/0001-Bluetooth-MGMT-Synchronize-scan-start-and-LE-Meta-ev.patch
 COPY run-img.sh /opt/ubuntu-qemu/run-img.sh
-
+COPY files/bluetooth/main.conf /tmp/workdir/main.conf
 RUN set -x \
 	&& chmod +x /opt/ubuntu-qemu/run-img.sh \
 	&& apt-get update \
@@ -124,8 +124,7 @@ RUN mkdir -p /tmp/workdir/linux \
 	# Prepare ubuntu image
 	&& qemu-img create -f qcow2 -o preallocation=off $UBUNTU_QEMU_IMG 10G \
 	&& virt-resize --expand /dev/sda1 /tmp/workdir/ubuntu-20.04-minimal-cloudimg-amd64.img $UBUNTU_QEMU_IMG \
-	&& rm -rf /tmp/workdir \
-	&& guestfish -a $UBUNTU_QEMU_IMG \
+	guestfish -a $UBUNTU_QEMU_IMG \
 	--mount /dev/sda3:/ \
 	--network \
 	copy-in /opt/ubuntu-qemu/rootfs/lib /usr : \
@@ -157,15 +156,10 @@ RUN mkdir -p /tmp/workdir/linux \
 	sh '/bin/echo -e "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp0s4:\n      dhcp4: true\n" > /etc/netplan/01-netcfg.yaml' : \
 	sh 'chmod -R 700 /etc/netplan' : \
 	sh 'sed -i "s#^ExecStart=.*#ExecStart=-/sbin/agetty -o \"-p -- \\\\\\\\u\" -a root --keep-baud 115200,38400,9600 %I \$TERM#" "/usr/lib/systemd/system/serial-getty@.service"' : \
-	mkdir-p /etc/bluetooth : \
-	sh '/bin/echo -e "[GATT]\nCache=no" > /etc/bluetooth/main.conf' : \
+	mkdir-p "/etc/bluetooth" : \
+	copy-in /tmp/workdir/main.conf /etc/bluetooth : \
 	sh 'sed -i "s#^ExecStart=.*#ExecStart=-/usr/libexec/bluetooth/bluetoothd -E#" /lib/systemd/system/bluetooth.service' : \
-	sh '/bin/echo -e "port=0\ninterface=wlan1\nlisten-address=192.168.200.1\ndhcp-range=192.168.200.10,192.168.200.200\n" > /etc/dnsmasq.conf'  : \
-	mkdir-p "/etc/wpa_supplicant" : \
-	mkdir-p "/etc/hostapd"  : \
-	sh '/bin/echo -e "ctrl_interface=DIR=/run/wpa_supplicant\nctrl_interface_group=root\nupdate_config=1" > /etc/wpa_supplicant/wpa_supplicant.conf' : \
 	sh 'rm -f /etc/resolv.conf && /bin/echo -e "nameserver 8.8.8.8" > /etc/resolv.conf' : \
-	sh '/bin/echo -e "interface=wlan1\ndriver=nl80211\ncountry_code=DE\nssid=Virtual_Wifi\nchannel=1\nhw_mode=g\nwpa=3\nwpa_key_mgmt=WPA-PSK\nwpa_pairwise=TKIP CCMP\nwpa_passphrase=ExamplePassword\nauth_algs=3\nbeacon_int=100\n" > /etc/hostapd/hostapd.conf' :\
 	sh '/bin/echo -e "host0 /chip 9p trans=virtio,version=9p2000.L 0 0" >> /etc/fstab' : \
 	sh '/bin/echo -e "export PW_ENVIRONMENT_ROOT=/root/pw_root\n[ -x /launcher.sh ] && /launcher.sh\n" >> /root/.profile' : \
 	sh 'DEBIAN_FRONTEND=noninteractive apt-get -y install git gcc g++ pkg-config libssl-dev libdbus-1-dev libglib2.0-dev libavahi-client-dev ninja-build python3 python3-venv python3-dev python3-pip unzip libgirepository1.0-dev libcairo2-dev libreadline-dev' : \
@@ -180,7 +174,7 @@ RUN mkdir -p /tmp/workdir/linux \
 	"if [[ -x /chip/runner.sh ]]; then\n" \
 	"  echo '### RUNNER START ###'\n" \
 	"  cd /chip\n" \
-	"  /chip/runner.sh\n" \
+	"  bash /chip/runner.sh\n" \
 	"  status=\$?\n" \
 	"  echo \"### RUNNER STOP, RETURN: \$status\"\n" \
 	"  echo \$status > /chip/runner_status\n" \
@@ -190,6 +184,7 @@ RUN mkdir -p /tmp/workdir/linux \
 	"echo 'Shutting down emulated system...'\n" \
 	"echo o > /proc/sysrq-trigger\n" \
 	| guestfish --rw -a $UBUNTU_QEMU_IMG -m /dev/sda3:/ upload - /launcher.sh : chmod 0755 /launcher.sh \
-	&& rm -rf /var/tmp/.guestfs-0
+	&& rm -rf /var/tmp/.guestfs-0 \
+	&& rm -rf /tmp/workdir
 
 WORKDIR /chip
