@@ -124,7 +124,8 @@ class RunContext:
 )
 @click.option(
     '--runner',
-    type=click.Choice(['chip_repl_python', 'chip_tool_python', 'darwin_framework_tool_python'], case_sensitive=False),
+    type=click.Choice(['chip_repl_python', 'chip_tool_python',
+                      'darwin_framework_tool_python'], case_sensitive=False),
     default='chip_tool_python',
     help='Run YAML tests using the specified runner.')
 @click.option(
@@ -162,7 +163,8 @@ def main(context, dry_run, log_level, target, target_glob, target_skip_glob,
     if runtime == TestRunTime.CHIP_REPL_PYTHON:
         all_tests = [test for test in chiptest.AllReplYamlTests()]
     elif runtime == TestRunTime.DARWIN_FRAMEWORK_TOOL_PYTHON:
-        all_tests = [test for test in chiptest.AllDarwinFrameworkToolYamlTests()]
+        all_tests = [
+            test for test in chiptest.AllDarwinFrameworkToolYamlTests()]
     else:
         all_tests = [test for test in chiptest.AllChipToolYamlTests()]
 
@@ -300,7 +302,8 @@ def cmd_list(context):
 def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, ota_requestor_app,
             tv_app, bridge_app, lit_icd_app, microwave_oven_app, rvc_app, chip_repl_yaml_tester, chip_tool_with_python, pics_file, keep_going, test_timeout_seconds, expected_failures, ble_wifi):
     if expected_failures != 0 and not keep_going:
-        logging.exception(f"'--expected-failures {expected_failures}' used without '--keep-going'")
+        logging.exception(
+            f"'--expected-failures {expected_failures}' used without '--keep-going'")
         sys.exit(2)
 
     runner = chiptest.runner.Runner()
@@ -335,7 +338,8 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
         rvc_app = paths_finder.get('chip-rvc-app')
 
     if chip_repl_yaml_tester is None:
-        chip_repl_yaml_tester = paths_finder.get('yamltest_with_chip_repl_tester.py')
+        chip_repl_yaml_tester = paths_finder.get(
+            'yamltest_with_chip_repl_tester.py')
 
     if chip_tool_with_python is None:
         if context.obj.runtime == TestRunTime.DARWIN_FRAMEWORK_TOOL_PYTHON:
@@ -360,7 +364,8 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
     )
 
     if sys.platform == 'linux':
-        chiptest.linux.PrepareNamespacesForTestExecution(context.obj.in_unshare)
+        chiptest.linux.PrepareNamespacesForTestExecution(
+            context.obj.in_unshare)
         if (ble_wifi):
             dbus = chiptest.linux.DbusTest()
             dbus.start()
@@ -374,7 +379,8 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
                 wlan_tool="wlan1",
 
             )
-            virt_ble = chiptest.linux.VirtualBle("/usr/bin/btvirt", "/usr/bin/bluetoothctl")
+            virt_ble = chiptest.linux.VirtualBle(
+                "/usr/bin/btvirt", "/usr/bin/bluetoothctl")
             virt_wifi.start()
             virt_ble.start()
         paths = chiptest.linux.PathsWithNetworkNamespaces(paths)
@@ -413,9 +419,14 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
                     logging.info("Would run test: %s" % test.name)
                 else:
                     logging.info('%-20s - Starting test' % (test.name))
-                test.Run(
-                    runner, apps_register, paths, pics_file, test_timeout_seconds, context.obj.dry_run,
-                    test_runtime=context.obj.runtime, ble_wifi=ble_wifi)
+                if ble_wifi:
+                    test.Run(
+                        runner, apps_register, paths, pics_file, test_timeout_seconds, context.obj.dry_run,
+                        test_runtime=context.obj.runtime, app_hci_number=virt_ble.ble_app.index, tool_hci_number=virt_ble.ble_tool.index)
+                else:
+                    test.Run(
+                        runner, apps_register, paths, pics_file, test_timeout_seconds, context.obj.dry_run,
+                        test_runtime=context.obj.runtime)
                 if not context.obj.dry_run:
                     test_end = time.monotonic()
                     logging.info('%-30s - Completed in %0.2f seconds' %
@@ -430,7 +441,8 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
                     sys.exit(2)
 
         if observed_failures != expected_failures:
-            logging.exception(f'Iteration {i}: expected failure count {expected_failures}, but got {observed_failures}')
+            logging.exception(
+                f'Iteration {i}: expected failure count {expected_failures}, but got {observed_failures}')
             cleanup()
             sys.exit(2)
 

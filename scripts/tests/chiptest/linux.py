@@ -270,7 +270,7 @@ class VirtualWifi:
 
 
 class VirtualBle:
-    BleDevice = namedtuple('BleDevice', ['hci', 'mac'])
+    BleDevice = namedtuple('BleDevice', ['hci', 'mac', 'index'])
 
     def __init__(self, btvirt_path: str, bluetoothctl_path: str):
         self._btvirt_path = btvirt_path
@@ -314,9 +314,9 @@ class VirtualBle:
         if len(hci) < 2:
             raise RuntimeError("Not enough BLE devices found")
         self._ble_app = self.BleDevice(
-            hci=hci[0], mac=self._get_mac_address(hci[0]))
+            hci=hci[0], mac=self._get_mac_address(hci[0]), index=int(hci[0].replace('hci', '')))
         self._ble_tool = self.BleDevice(
-            hci=hci[1], mac=self._get_mac_address(hci[1]))
+            hci=hci[1], mac=self._get_mac_address(hci[1]), index=int(hci[1].replace('hci', '')))
 
     def _run_bluetoothctl(self):
         self._bluetoothctl = subprocess.Popen([self._bluetoothctl_path], text=True,
