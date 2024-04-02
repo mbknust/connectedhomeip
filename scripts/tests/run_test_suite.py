@@ -20,6 +20,7 @@ import os
 import sys
 import time
 import typing
+import subprocess
 from dataclasses import dataclass, field
 
 import chiptest
@@ -361,6 +362,10 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
     if sys.platform == 'linux':
         chiptest.linux.PrepareNamespacesForTestExecution(context.obj.in_unshare)
         if (ble_wifi):
+            dbus = chiptest.linux.DbusTest()
+            dbus.start()
+
+            subprocess.Popen(["/usr/libexec/bluetooth/bluetoothd", "-E"])
             virt_wifi = chiptest.linux.VirtualWifi(
                 "/usr/sbin/hostapd",
                 "/usr/sbin/dnsmasq",
@@ -385,6 +390,7 @@ def cmd_run(context, iterations, all_clusters_app, lock_app, ota_provider_app, o
             if (ble_wifi):
                 virt_wifi.stop()
                 virt_ble.stop()
+                dbus.stop()
             chiptest.linux.ShutdownNamespaceForTestExecution()
 
     for i in range(iterations):

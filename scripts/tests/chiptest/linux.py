@@ -24,11 +24,13 @@ import os
 import subprocess
 import sys
 import time
+import shutil
 
 from .test_definition import ApplicationPaths
-import psutil
 
 test_environ = os.environ.copy()
+PW_PROJECT_ROOT = os.environ.get("PW_PROJECT_ROOT")
+QEMU_CONFIG_FILES = "integrations/docker/images/stage-2/chip-build-linux-qemu/files"
 
 
 def EnsureNetworkNamespaceAvailability():
@@ -171,14 +173,37 @@ def PrepareNamespacesForTestExecution(in_unshare: bool):
 def ShutdownNamespaceForTestExecution():
     RemoveNamespaceForAppTest()
 
+
+class DbusTest:
+    DBUS_SYSTEM_BUS_ADDRESS = "unix:path=/tmp/chip-dbus-test"
+
+    def __init__(self):
+        self.dbus = None
+
+    def start(self):
+        os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = DbusTest.DBUS_SYSTEM_BUS_ADDRESS
+        dbus = shutil.which("dbus-daemon")
+        logging.error(dbus)
+        self.dbus = subprocess.Popen(
+            [dbus, "--session", "--address", self.DBUS_SYSTEM_BUS_ADDRESS], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    def stop(self):
+        if self.dbus:
+            self.dbus.terminate()
+            self.dbus.wait()
+
+
 class VirtualWifi:
     def __init__(self, hostapd_path: str, dnsmasq_path: str, wpa_supplicant_path: str, wlan_app: str, wlan_tool: str):
         self._hostapd_path = hostapd_path
         self._dnsmasq_path = dnsmasq_path
         self._wpa_supplicant_path = wpa_supplicant_path
-        self._hostapd_conf = "/etc/hostapd/hostapd.conf"
-        self._dnsmasq_conf = "/etc/dnsmasq.conf"
-        self._wpa_supplicant_conf = "/etc/wpa_supplicant/wpa_supplicant.conf"
+        self._hostapd_conf = os.path.join(
+            PW_PROJECT_ROOT, QEMU_CONFIG_FILES, "wifi/hostapd.conf")
+        self._dnsmasq_conf = os.path.join(
+            PW_PROJECT_ROOT, QEMU_CONFIG_FILES, "wifi/dnsmasq.conf")
+        self._wpa_supplicant_conf = os.path.join(
+            PW_PROJECT_ROOT, QEMU_CONFIG_FILES, "wifi/wpa_supplicant.conf")
         self._wlan_app = wlan_app
         self._wlan_tool = wlan_tool
         self._hostapd = None
