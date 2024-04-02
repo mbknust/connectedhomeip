@@ -124,7 +124,7 @@ RUN mkdir -p /tmp/workdir/linux \
 	# Prepare ubuntu image
 	&& qemu-img create -f qcow2 -o preallocation=off $UBUNTU_QEMU_IMG 10G \
 	&& virt-resize --expand /dev/sda1 /tmp/workdir/ubuntu-20.04-minimal-cloudimg-amd64.img $UBUNTU_QEMU_IMG \
-	guestfish -a $UBUNTU_QEMU_IMG \
+	&& guestfish -a $UBUNTU_QEMU_IMG \
 	--mount /dev/sda3:/ \
 	--network \
 	copy-in /opt/ubuntu-qemu/rootfs/lib /usr : \
