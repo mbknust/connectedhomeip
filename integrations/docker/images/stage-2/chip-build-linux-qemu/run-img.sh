@@ -5,16 +5,17 @@ IMG="/opt/ubuntu-qemu/ubuntu-20.04.img"
 ADDITIONAL_ARGS=()
 PROJECT_PATH="$(realpath "$(dirname "$0")/../../../../..")"
 
-# if kvm-ok; then
-#     ADDITIONAL_ARGS+=("-enable-kvm" "-cpu" "host")
-# else
-#     echo "KVM is not available, running without it."
-# fi
+if kvm-ok; then
+    echo "KVM is available, running with it."
+    ADDITIONAL_ARGS+=("-enable-kvm" "-cpu" "host")
+else
+    echo "KVM is not available, running without it."
+fi
 
 /usr/bin/qemu-system-x86_64 \
     -machine ubuntu \
-    -smp 2 \
-    -m 1024 \
+    -smp 4 \
+    -m 2048 \
     -nographic \
     -monitor null \
     -serial stdio \
