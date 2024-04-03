@@ -18,6 +18,13 @@ on:
     push:
     pull_request:
     merge_group:
+    workflow_dispatch:
+      inputs:
+        debug_enabled:
+          type: boolean
+          description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+          required: false
+          default: false
 
 concurrency:
     group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
@@ -25,7 +32,7 @@ concurrency:
 
 env:
     CHIP_NO_LOG_TIMESTAMPS: true
-    
+    ACTIONS_RUNNER_DEBUG: true
 jobs:
 
     qemu-esp32:
@@ -108,6 +115,7 @@ jobs:
             image: ghcr.io/jlatusek/chip-build-linux-qemu:latest
             volumes:
                 - "/tmp/log_output:/tmp/test_logs"
+            options: --privileged
 
         steps:
             - name: Checkout
@@ -131,6 +139,16 @@ jobs:
               run: |
                   rm -rf out/*/obj
                   rm -rf out/*/lib
+            - name: ls home get home path
+              run: |
+                  ls $HOME
+                  echo $HOME
+            - name: Remove pw_root
+              run: |
+                  rm -rf $HOME/pw_root
+            - name: Clean repo
+              run: |
+                git clean -fdx --exclude out
             - name: Run ble commission test using the python parser sending commands to chip-tool
               run: |
                 ./scripts/run_in_vm.sh \
