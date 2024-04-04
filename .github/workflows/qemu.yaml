@@ -135,20 +135,14 @@ jobs:
                         build \
                         --copy-artifacts-to objdir-clone \
                      "
-            - name: Remove obj and lib
+            # There is no enough space for running the test withouth cleaning the environment
+            - name: Clean up
               run: |
-                  rm -rf out/*/obj
-                  rm -rf out/*/lib
-            - name: ls home get home path
-              run: |
-                  ls $HOME
-                  echo $HOME
-            - name: Remove pw_root
-              run: |
-                  rm -rf $HOME/pw_root
-            - name: Clean repo
-              run: |
+                rm -rf out/*/obj
+                rm -rf out/*/lib
+                rm -rf $PW_ENVIRONMENT_ROOT
                 git clean -fdx --exclude out
+            # Without all required apps paths provided as argument, script starts to search for them in the current directory and it takes a lot of time.
             - name: Run ble commission test using the python parser sending commands to chip-tool
               run: |
                 ./scripts/run_in_vm.sh \
