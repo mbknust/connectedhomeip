@@ -35,7 +35,28 @@ namespace chip {
 namespace app {
 namespace TestPath {
 
-TEST(TestClusterInfo, TestAttributePathIntersect)
+class TestClusterInfo : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite()
+    {
+        validEventpaths[1].mClusterId  = MockClusterId(1);
+        validEventpaths[2].mClusterId  = MockClusterId(1);
+        validEventpaths[2].mEventId    = MockEventId(1);
+        validEventpaths[3].mEndpointId = kMockEndpoint1;
+        validEventpaths[4].mEndpointId = kMockEndpoint1;
+        validEventpaths[4].mClusterId  = MockClusterId(1);
+        validEventpaths[5].mEndpointId = kMockEndpoint1;
+        validEventpaths[5].mClusterId  = MockClusterId(1);
+        validEventpaths[5].mEventId    = MockEventId(1);
+    }
+
+    static chip::app::EventPathParams validEventpaths[6];
+};
+
+chip::app::EventPathParams TestClusterInfo::validEventpaths[6];
+
+TEST_F(TestClusterInfo, TestAttributePathIntersect)
 {
     EndpointId endpointIdArray[2]   = { 1, kInvalidEndpointId };
     ClusterId clusterIdArray[2]     = { 2, kInvalidClusterId };
@@ -94,7 +115,7 @@ TEST(TestClusterInfo, TestAttributePathIntersect)
     }
 }
 
-TEST(TestClusterInfo, TestAttributePathIncludedSameFieldId)
+TEST_F(TestClusterInfo, TestAttributePathIncludedSameFieldId)
 {
     AttributePathParams clusterInfo1;
     AttributePathParams clusterInfo2;
@@ -113,7 +134,7 @@ TEST(TestClusterInfo, TestAttributePathIncludedSameFieldId)
     EXPECT_TRUE(!clusterInfo1.IsAttributePathSupersetOf(clusterInfo3));
 }
 
-TEST(TestClusterInfo, TestAttributePathIncludedDifferentFieldId)
+TEST_F(TestClusterInfo, TestAttributePathIncludedDifferentFieldId)
 {
     {
         AttributePathParams clusterInfo1;
@@ -142,7 +163,7 @@ TEST(TestClusterInfo, TestAttributePathIncludedDifferentFieldId)
     }
 }
 
-TEST(TestClusterInfo, TestAttributePathIncludedDifferentEndpointId)
+TEST_F(TestClusterInfo, TestAttributePathIncludedDifferentEndpointId)
 {
     AttributePathParams clusterInfo1;
     AttributePathParams clusterInfo2;
@@ -151,7 +172,7 @@ TEST(TestClusterInfo, TestAttributePathIncludedDifferentEndpointId)
     EXPECT_TRUE(!clusterInfo1.IsAttributePathSupersetOf(clusterInfo2));
 }
 
-TEST(TestClusterInfo, TestAttributePathIncludedDifferentClusterId)
+TEST_F(TestClusterInfo, TestAttributePathIncludedDifferentClusterId)
 {
     AttributePathParams clusterInfo1;
     AttributePathParams clusterInfo2;
@@ -160,29 +181,7 @@ TEST(TestClusterInfo, TestAttributePathIncludedDifferentClusterId)
     EXPECT_TRUE(!clusterInfo1.IsAttributePathSupersetOf(clusterInfo2));
 }
 
-/*
-{kInvalidEndpointId, kInvalidClusterId, kInvalidEventId},
-{kInvalidEndpointId, MockClusterId(1), kInvalidEventId},
-{kInvalidEndpointId, MockClusterId(1), MockEventId(1)},
-{kMockEndpoint1, kInvalidClusterId, kInvalidEventId},
-{kMockEndpoint1, MockClusterId(1), kInvalidEventId},
-{kMockEndpoint1, MockClusterId(1), MockEventId(1)},
-*/
-chip::app::EventPathParams validEventpaths[6];
-void InitEventPaths()
-{
-    validEventpaths[1].mClusterId  = MockClusterId(1);
-    validEventpaths[2].mClusterId  = MockClusterId(1);
-    validEventpaths[2].mEventId    = MockEventId(1);
-    validEventpaths[3].mEndpointId = kMockEndpoint1;
-    validEventpaths[4].mEndpointId = kMockEndpoint1;
-    validEventpaths[4].mClusterId  = MockClusterId(1);
-    validEventpaths[5].mEndpointId = kMockEndpoint1;
-    validEventpaths[5].mClusterId  = MockClusterId(1);
-    validEventpaths[5].mEventId    = MockEventId(1);
-}
-
-TEST(TestClusterInfo, TestEventPathSameEventId)
+TEST_F(TestClusterInfo, TestEventPathSameEventId)
 {
     ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(1), MockEventId(1));
     for (auto & path : validEventpaths)
@@ -192,7 +191,7 @@ TEST(TestClusterInfo, TestEventPathSameEventId)
     }
 }
 
-TEST(TestClusterInfo, TestEventPathDifferentEventId)
+TEST_F(TestClusterInfo, TestEventPathDifferentEventId)
 {
     ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(1), MockEventId(2));
     EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
@@ -203,7 +202,7 @@ TEST(TestClusterInfo, TestEventPathDifferentEventId)
     EXPECT_TRUE(!validEventpaths[5].IsEventPathSupersetOf(testPath));
 }
 
-TEST(TestClusterInfo, TestEventPathDifferentClusterId)
+TEST_F(TestClusterInfo, TestEventPathDifferentClusterId)
 {
     ConcreteEventPath testPath(kMockEndpoint1, MockClusterId(2), MockEventId(1));
     EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
@@ -214,7 +213,7 @@ TEST(TestClusterInfo, TestEventPathDifferentClusterId)
     EXPECT_TRUE(!validEventpaths[5].IsEventPathSupersetOf(testPath));
 }
 
-TEST(TestClusterInfo, TestEventPathDifferentEndpointId)
+TEST_F(TestClusterInfo, TestEventPathDifferentEndpointId)
 {
     ConcreteEventPath testPath(kMockEndpoint2, MockClusterId(1), MockEventId(1));
     EXPECT_TRUE(validEventpaths[0].IsEventPathSupersetOf(testPath));
