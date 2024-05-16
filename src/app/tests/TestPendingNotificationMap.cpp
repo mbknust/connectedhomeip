@@ -50,7 +50,17 @@ void CreateDefaultFullBindingTable(BindingTable & table)
     }
 }
 
-TEST(TestPendingNotificationMap, TestEmptyMap)
+class TestPendingNotificationMap : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { BindingTable::GetInstance().SetPersistentStorage(&storage); }
+
+    static chip::TestPersistentStorageDelegate storage;
+};
+
+chip::TestPersistentStorageDelegate TestPendingNotificationMap::storage;
+
+TEST_F(TestPendingNotificationMap, TestEmptyMap)
 {
     PendingNotificationMap pendingMap;
     EXPECT_EQ(pendingMap.begin(), pendingMap.end());
@@ -58,7 +68,7 @@ TEST(TestPendingNotificationMap, TestEmptyMap)
     EXPECT_EQ(pendingMap.FindLRUConnectPeer(peer), CHIP_ERROR_NOT_FOUND);
 }
 
-TEST(TestPendingNotificationMap, TestAddRemove)
+TEST_F(TestPendingNotificationMap, TestAddRemove)
 {
     PendingNotificationMap pendingMap;
     ClearBindingTable(BindingTable::GetInstance());
@@ -101,7 +111,7 @@ TEST(TestPendingNotificationMap, TestAddRemove)
     EXPECT_EQ(pendingMap.begin(), pendingMap.end());
 }
 
-TEST(TestPendingNotificationMap, TestLRUEntry)
+TEST_F(TestPendingNotificationMap, TestLRUEntry)
 {
     PendingNotificationMap pendingMap;
     ClearBindingTable(BindingTable::GetInstance());
