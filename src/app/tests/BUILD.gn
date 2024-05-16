@@ -156,8 +156,7 @@ chip_test_suite("tests") {
     "TestTestEventTriggerDelegate.cpp",
     "TestTimeSyncDataProvider.cpp",
     "TestTimedHandler.cpp",
-
-    # "TestWriteInteraction.cpp",
+    "TestWriteInteraction.cpp",
   ]
 
   if (!chip_fake_platform) {

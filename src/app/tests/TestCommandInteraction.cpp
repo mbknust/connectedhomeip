@@ -86,21 +86,6 @@ const app::CommandSender::TestOnlyMarker kCommandSenderTestOnlyMarker;
 
 namespace app {
 
-// FIXME: To be removed when TestWriteInteraction is ported
-const EmberAfAttributeMetadata * GetAttributeMetadata(const ConcreteAttributePath & aConcreteClusterPath)
-{
-    // Note: This test does not make use of the real attribute metadata.
-    static EmberAfAttributeMetadata stub = { .defaultValue = EmberAfDefaultOrMinMaxAttributeValue(uint32_t(0)) };
-    return &stub;
-}
-
-// FIXME: To be removed when TestWriteInteraction is ported
-CHIP_ERROR WriteSingleClusterData(const Access::SubjectDescriptor & aSubjectDescriptor, const ConcreteDataAttributePath & aPath,
-                                  TLV::TLVReader & aReader, WriteHandler * aWriteHandler)
-{
-    return CHIP_NO_ERROR;
-}
-
 CommandHandler::Handle asyncCommandHandle;
 
 struct ForcedSizeBuffer
